@@ -13,6 +13,7 @@ import br.com.openmonetis.companion.data.local.dao.AppConfigDao
 import br.com.openmonetis.companion.data.local.dao.NotificationDao
 import br.com.openmonetis.companion.data.local.entities.AppConfigEntity
 import br.com.openmonetis.companion.service.CaptureNotificationListenerService
+import br.com.openmonetis.companion.util.NotificationsExporter
 import br.com.openmonetis.companion.util.SecureStorage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -52,7 +53,9 @@ data class SettingsUiState(
     val editToken: String = "",
     val installedApps: List<InstalledAppUi> = emptyList(),
     val appSearchQuery: String = "",
-    val isLoadingApps: Boolean = false
+    val isLoadingApps: Boolean = false,
+    val isExportingNotifications: Boolean = false,
+    val exportMessage: String? = null
 )
 
 @HiltViewModel
@@ -60,7 +63,8 @@ class SettingsViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val secureStorage: SecureStorage,
     private val appConfigDao: AppConfigDao,
-    private val notificationDao: NotificationDao
+    private val notificationDao: NotificationDao,
+    private val notificationsExporter: NotificationsExporter
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SettingsUiState())
@@ -293,6 +297,38 @@ class SettingsViewModel @Inject constructor(
             notificationDao.deleteAll()
             hideClearDataDialog()
         }
+    }
+
+    fun exportNotifications() {
+        if (_uiState.value.isExportingNotifications) return
+
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isExportingNotifications = true)
+
+            try {
+                val result = withContext(Dispatchers.IO) {
+                    notificationsExporter.exportToDownloads()
+                }
+                val message = if (result.notificationCount > 0) {
+                    "${result.notificationCount} notificacoes exportadas para Downloads/${result.fileName}"
+                } else {
+                    "Arquivo criado em Downloads/${result.fileName}, mas nao havia notificacoes salvas"
+                }
+                _uiState.value = _uiState.value.copy(
+                    isExportingNotifications = false,
+                    exportMessage = message
+                )
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    isExportingNotifications = false,
+                    exportMessage = "Falha ao exportar notificacoes: ${e.message ?: "erro desconhecido"}"
+                )
+            }
+        }
+    }
+
+    fun clearExportMessage() {
+        _uiState.value = _uiState.value.copy(exportMessage = null)
     }
 
     fun openNotificationSettings(): Intent {

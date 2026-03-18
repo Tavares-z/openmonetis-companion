@@ -1,5 +1,6 @@
 package br.com.openmonetis.companion.ui.screens.settings
 
+import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -24,6 +25,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Error
+import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
@@ -82,6 +84,13 @@ fun SettingsScreen(
     LaunchedEffect(uiState.isConnected) {
         if (!uiState.isConnected && uiState.serverUrl.isEmpty()) {
             onDisconnected()
+        }
+    }
+
+    LaunchedEffect(uiState.exportMessage) {
+        uiState.exportMessage?.let { message ->
+            Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+            viewModel.clearExportMessage()
         }
     }
 
@@ -273,6 +282,53 @@ fun SettingsScreen(
             item {
                 Spacer(modifier = Modifier.height(8.dp))
                 SectionHeader(title = "Dados")
+            }
+
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
+                    ),
+                    onClick = viewModel::exportNotifications,
+                    enabled = !uiState.isExportingNotifications
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        if (uiState.isExportingNotifications) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Icon(
+                                Icons.Default.FileDownload,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Exportar Notificações",
+                                style = MaterialTheme.typography.titleSmall
+                            )
+                            Text(
+                                text = if (uiState.isExportingNotifications) {
+                                    "Gerando arquivo JSON em Downloads..."
+                                } else {
+                                    "Salvar notificações capturadas em um arquivo JSON"
+                                },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
             }
 
             item {
@@ -677,4 +733,3 @@ private fun AppToggleItem(
         }
     }
 }
-

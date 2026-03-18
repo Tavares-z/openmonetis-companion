@@ -24,6 +24,9 @@ interface NotificationDao {
     @Query("SELECT * FROM notifications ORDER BY created_at DESC")
     fun getAllFlow(): Flow<List<NotificationEntity>>
 
+    @Query("SELECT * FROM notifications ORDER BY created_at DESC")
+    suspend fun getAll(): List<NotificationEntity>
+
     @Query("SELECT * FROM notifications ORDER BY created_at DESC LIMIT :limit")
     suspend fun getRecent(limit: Int = 50): List<NotificationEntity>
 
