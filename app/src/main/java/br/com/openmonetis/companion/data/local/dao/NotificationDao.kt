@@ -30,6 +30,9 @@ interface NotificationDao {
     @Query("SELECT * FROM notifications ORDER BY created_at DESC LIMIT :limit")
     suspend fun getRecent(limit: Int = 50): List<NotificationEntity>
 
+    @Query("SELECT * FROM notifications WHERE id = :id LIMIT 1")
+    suspend fun getById(id: String): NotificationEntity?
+
     @Query("SELECT * FROM notifications WHERE sync_status = :status ORDER BY created_at ASC")
     suspend fun getByStatus(status: SyncStatus): List<NotificationEntity>
 
@@ -55,6 +58,9 @@ interface NotificationDao {
 
     @Query("UPDATE notifications SET sync_status = :status WHERE id = :id")
     suspend fun updateStatus(id: String, status: SyncStatus)
+
+    @Query("UPDATE notifications SET sync_status = :status, sync_error = NULL WHERE id = :id")
+    suspend fun retrySync(id: String, status: SyncStatus = SyncStatus.PENDING_SYNC)
 
     @Query("UPDATE notifications SET sync_status = :status, server_item_id = :serverId WHERE id = :id")
     suspend fun markSynced(id: String, serverId: String, status: SyncStatus = SyncStatus.SYNCED)

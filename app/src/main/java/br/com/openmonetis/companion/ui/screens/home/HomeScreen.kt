@@ -1,5 +1,9 @@
 package br.com.openmonetis.companion.ui.screens.home
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -40,12 +44,19 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -54,6 +65,9 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import br.com.openmonetis.companion.R
 import br.com.openmonetis.companion.data.local.entities.SyncStatus
+import br.com.openmonetis.companion.ui.components.CapturedNotificationDetails
+import br.com.openmonetis.companion.ui.components.CapturedNotificationDetailsDialog
+import br.com.openmonetis.companion.ui.theme.Success
 import com.google.accompanist.drawablepainter.rememberDrawablePainter
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -65,15 +79,51 @@ fun HomeScreen(
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
+    var selectedNotification by remember { mutableStateOf<NotificationUiItem?>(null) }
+
+    selectedNotification?.let { notification ->
+        CapturedNotificationDetailsDialog(
+            notification = notification.toDetails(),
+            onDismiss = { selectedNotification = null },
+            onCopyOriginalText = {
+                copyNotificationText(context, notification.text)
+                Toast.makeText(context, "Texto copiado", Toast.LENGTH_SHORT).show()
+            },
+            onRetry = if (notification.syncStatus == SyncStatus.SYNCED || notification.syncStatus == SyncStatus.PROCESSED) {
+                null
+            } else {
+                {
+                    viewModel.retryNotification(notification.id)
+                    selectedNotification = null
+                    Toast.makeText(context, "Lançamento marcado para reenvio", Toast.LENGTH_SHORT).show()
+                }
+            },
+            onDiscard = if (notification.syncStatus == SyncStatus.SYNCED || notification.syncStatus == SyncStatus.PROCESSED) {
+                null
+            } else {
+                {
+                    viewModel.discardNotification(notification.id)
+                    selectedNotification = null
+                    Toast.makeText(context, "Lançamento descartado", Toast.LENGTH_SHORT).show()
+                }
+            }
+        )
+    }
 
     Scaffold(
         topBar = {
             TopAppBar(
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    actionIconContentColor = MaterialTheme.colorScheme.onPrimary
+                ),
                 title = {
                     Image(
                         painter = painterResource(R.drawable.logo_small),
                         contentDescription = stringResource(R.string.home_title),
-                        modifier = Modifier.height(32.dp)
+                        modifier = Modifier.height(32.dp),
+                        colorFilter = ColorFilter.tint(Color.Black)
                     )
                 },
                 actions = {
@@ -184,7 +234,8 @@ fun HomeScreen(
                     ) { notification ->
                         NotificationCard(
                             notification = notification,
-                            onDelete = { viewModel.deleteNotification(notification.id) }
+                            onDelete = { viewModel.deleteNotification(notification.id) },
+                            onClick = { selectedNotification = notification }
                         )
                     }
                 }
@@ -199,10 +250,8 @@ private fun FilterSection(
     onFilterSelected: (SyncStatusFilter) -> Unit
 ) {
     val filters = listOf(
-        Triple(SyncStatusFilter.ALL, Icons.Default.Notifications, "Todos"),
-        Triple(SyncStatusFilter.PENDING, Icons.Default.Schedule, "Pendentes"),
-        Triple(SyncStatusFilter.SYNCED, Icons.Default.CheckCircle, "Sincronizados"),
-        Triple(SyncStatusFilter.FAILED, Icons.Default.Error, "Falha")
+        Triple(SyncStatusFilter.SENT, Icons.Default.CheckCircle, "Enviados"),
+        Triple(SyncStatusFilter.PENDING, Icons.Default.Schedule, "Pendentes")
     )
 
     val selectedLabel = filters.first { it.first == selectedFilter }.third
@@ -261,13 +310,15 @@ private fun FilterSection(
 @Composable
 private fun NotificationCard(
     notification: NotificationUiItem,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onClick: () -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant
-        )
+        ),
+        onClick = onClick
     ) {
         Column(
             modifier = Modifier.padding(16.dp)
@@ -375,11 +426,28 @@ private fun NotificationCard(
     }
 }
 
+private fun NotificationUiItem.toDetails() = CapturedNotificationDetails(
+    appName = appName,
+    title = title,
+    text = text,
+    parsedAmount = parsedAmount,
+    parsedName = parsedName,
+    syncStatus = syncStatus,
+    timestampFull = timestampFull,
+    syncError = syncError
+)
+
+private fun copyNotificationText(context: Context, text: String) {
+    val clipboardManager = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+    clipboardManager.setPrimaryClip(ClipData.newPlainText("captured_notification", text))
+}
+
 @Composable
 private fun SyncStatusBadge(status: SyncStatus) {
     val (icon, text, color) = when (status) {
-        SyncStatus.SYNCED -> Triple(Icons.Default.CheckCircle, "Sincronizado", MaterialTheme.colorScheme.primary)
-        SyncStatus.SYNC_FAILED -> Triple(Icons.Default.Error, "Falha", MaterialTheme.colorScheme.error)
+        SyncStatus.SYNCED,
+        SyncStatus.PROCESSED -> Triple(Icons.Default.CheckCircle, "Enviado", Success)
+        SyncStatus.SYNC_FAILED -> Triple(Icons.Default.Error, "Pendente", MaterialTheme.colorScheme.error)
         else -> Triple(Icons.Default.Schedule, "Pendente", MaterialTheme.colorScheme.onSurfaceVariant)
     }
 

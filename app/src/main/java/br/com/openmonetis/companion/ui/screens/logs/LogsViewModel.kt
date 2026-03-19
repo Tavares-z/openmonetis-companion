@@ -2,6 +2,8 @@ package br.com.openmonetis.companion.ui.screens.logs
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import br.com.openmonetis.companion.data.local.dao.NotificationDao
+import br.com.openmonetis.companion.data.local.entities.NotificationEntity
 import br.com.openmonetis.companion.data.local.dao.SyncLogDao
 import br.com.openmonetis.companion.data.local.entities.SyncLogEntity
 import br.com.openmonetis.companion.data.local.entities.SyncLogType
@@ -20,7 +22,9 @@ data class LogUiItem(
     val type: SyncLogType,
     val message: String,
     val details: String?,
-    val timestamp: String
+    val timestamp: String,
+    val entryLabel: String?,
+    val entryDetails: String?
 )
 
 data class LogsUiState(
@@ -31,7 +35,8 @@ data class LogsUiState(
 
 @HiltViewModel
 class LogsViewModel @Inject constructor(
-    private val syncLogDao: SyncLogDao
+    private val syncLogDao: SyncLogDao,
+    private val notificationDao: NotificationDao
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(LogsUiState())
@@ -48,7 +53,12 @@ class LogsViewModel @Inject constructor(
             _uiState.value = _uiState.value.copy(isLoading = true)
 
             val logs = syncLogDao.getRecent(200)
-            val uiItems = logs.map { it.toUiItem() }
+            val uiItems = logs.map { log ->
+                val notification = log.notificationId?.let { notificationId ->
+                    notificationDao.getById(notificationId)
+                }
+                log.toUiItem(notification)
+            }
 
             _uiState.value = _uiState.value.copy(
                 logs = uiItems,
@@ -65,13 +75,25 @@ class LogsViewModel @Inject constructor(
         }
     }
 
-    private fun SyncLogEntity.toUiItem(): LogUiItem {
+    private fun SyncLogEntity.toUiItem(notification: NotificationEntity?): LogUiItem {
         return LogUiItem(
             id = id,
             type = type,
             message = message,
             details = details,
-            timestamp = dateFormat.format(Date(timestamp))
+            timestamp = dateFormat.format(Date(timestamp)),
+            entryLabel = notification?.toEntryLabel(),
+            entryDetails = notification?.toEntryDetails()
         )
+    }
+
+    private fun NotificationEntity.toEntryLabel(): String {
+        val merchant = parsedName ?: originalTitle ?: sourceAppName ?: sourceApp
+        val amount = parsedAmount?.let { "R$ %.2f".format(it) }
+        return if (amount != null) "$merchant • $amount" else merchant
+    }
+
+    private fun NotificationEntity.toEntryDetails(): String {
+        return sourceAppName ?: sourceApp
     }
 }

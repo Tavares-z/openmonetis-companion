@@ -38,12 +38,13 @@ data class NotificationUiItem(
     val parsedAmount: String?,
     val parsedName: String?,
     val syncStatus: SyncStatus,
+    val syncError: String?,
     val timestamp: String,
     val timestampFull: String
 )
 
 enum class SyncStatusFilter {
-    ALL, PENDING, SYNCED, FAILED
+    PENDING, SENT
 }
 
 data class MonitoredAppIcon(
@@ -62,7 +63,7 @@ data class HomeUiState(
     val isRefreshing: Boolean = false,
     // History
     val notifications: List<NotificationUiItem> = emptyList(),
-    val selectedFilter: SyncStatusFilter = SyncStatusFilter.ALL,
+    val selectedFilter: SyncStatusFilter = SyncStatusFilter.SENT,
     val isLoadingNotifications: Boolean = true
 )
 
@@ -179,20 +180,35 @@ class HomeViewModel @Inject constructor(
         }
     }
 
+    fun retryNotification(id: String) {
+        viewModelScope.launch {
+            notificationDao.retrySync(id)
+            SyncWorker.enqueue(context)
+            loadNotifications()
+            loadStats()
+        }
+    }
+
+    fun discardNotification(id: String) {
+        viewModelScope.launch {
+            notificationDao.updateStatus(id, SyncStatus.DISCARDED)
+            loadNotifications()
+            loadStats()
+        }
+    }
+
     private fun filterNotifications(
         notifications: List<NotificationEntity>,
         filter: SyncStatusFilter
     ): List<NotificationEntity> {
         return when (filter) {
-            SyncStatusFilter.ALL -> notifications
             SyncStatusFilter.PENDING -> notifications.filter {
-                it.syncStatus == SyncStatus.PENDING_SYNC || it.syncStatus == SyncStatus.SYNCING
+                it.syncStatus == SyncStatus.PENDING_SYNC ||
+                    it.syncStatus == SyncStatus.SYNCING ||
+                    it.syncStatus == SyncStatus.SYNC_FAILED
             }
-            SyncStatusFilter.SYNCED -> notifications.filter {
+            SyncStatusFilter.SENT -> notifications.filter {
                 it.syncStatus == SyncStatus.SYNCED || it.syncStatus == SyncStatus.PROCESSED
-            }
-            SyncStatusFilter.FAILED -> notifications.filter {
-                it.syncStatus == SyncStatus.SYNC_FAILED
             }
         }
     }
@@ -207,6 +223,7 @@ class HomeViewModel @Inject constructor(
             parsedAmount = parsedAmount?.let { "R$ %.2f".format(it) },
             parsedName = parsedName,
             syncStatus = syncStatus,
+            syncError = syncError,
             timestamp = dateFormat.format(Date(createdAt)),
             timestampFull = dateFormatFull.format(Date(createdAt))
         )

@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import br.com.openmonetis.companion.data.local.dao.NotificationDao
 import br.com.openmonetis.companion.data.local.entities.NotificationEntity
 import br.com.openmonetis.companion.data.local.entities.SyncStatus
+import br.com.openmonetis.companion.service.SyncWorker
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -31,6 +32,7 @@ data class NotificationUiItem(
     val parsedAmount: String?,
     val parsedName: String?,
     val syncStatus: SyncStatus,
+    val syncError: String?,
     val timestamp: String,
     val timestampFull: String
 )
@@ -39,11 +41,11 @@ data class HistoryUiState(
     val isLoading: Boolean = true,
     val notifications: List<NotificationUiItem> = emptyList(),
     val isEmpty: Boolean = false,
-    val selectedFilter: SyncStatusFilter = SyncStatusFilter.ALL
+    val selectedFilter: SyncStatusFilter = SyncStatusFilter.SENT
 )
 
 enum class SyncStatusFilter {
-    ALL, PENDING, SYNCED, FAILED
+    PENDING, SENT
 }
 
 @HiltViewModel
@@ -107,20 +109,33 @@ class HistoryViewModel @Inject constructor(
         }
     }
 
+    fun retryNotification(id: String) {
+        viewModelScope.launch {
+            notificationDao.retrySync(id)
+            SyncWorker.enqueue(context)
+            loadNotifications()
+        }
+    }
+
+    fun discardNotification(id: String) {
+        viewModelScope.launch {
+            notificationDao.updateStatus(id, SyncStatus.DISCARDED)
+            loadNotifications()
+        }
+    }
+
     private fun filterNotifications(
         notifications: List<NotificationEntity>,
         filter: SyncStatusFilter
     ): List<NotificationEntity> {
         return when (filter) {
-            SyncStatusFilter.ALL -> notifications
             SyncStatusFilter.PENDING -> notifications.filter {
-                it.syncStatus == SyncStatus.PENDING_SYNC
+                it.syncStatus == SyncStatus.PENDING_SYNC ||
+                    it.syncStatus == SyncStatus.SYNCING ||
+                    it.syncStatus == SyncStatus.SYNC_FAILED
             }
-            SyncStatusFilter.SYNCED -> notifications.filter {
-                it.syncStatus == SyncStatus.SYNCED
-            }
-            SyncStatusFilter.FAILED -> notifications.filter {
-                it.syncStatus == SyncStatus.SYNC_FAILED
+            SyncStatusFilter.SENT -> notifications.filter {
+                it.syncStatus == SyncStatus.SYNCED || it.syncStatus == SyncStatus.PROCESSED
             }
         }
     }
@@ -135,6 +150,7 @@ class HistoryViewModel @Inject constructor(
             parsedAmount = parsedAmount?.let { "R$ %.2f".format(it) },
             parsedName = parsedName,
             syncStatus = syncStatus,
+            syncError = syncError,
             timestamp = dateFormat.format(Date(createdAt)),
             timestampFull = dateFormatFull.format(Date(createdAt))
         )

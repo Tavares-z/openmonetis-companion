@@ -20,6 +20,7 @@ import br.com.openmonetis.companion.data.remote.OpenMonetisApi
 import br.com.openmonetis.companion.data.remote.dto.InboxBatchRequest
 import br.com.openmonetis.companion.data.remote.dto.InboxRequest
 import br.com.openmonetis.companion.util.SecureStorage
+import br.com.openmonetis.companion.util.SyncResultNotifier
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import java.text.SimpleDateFormat
@@ -39,6 +40,7 @@ class SyncWorker @AssistedInject constructor(
 ) : CoroutineWorker(context, params) {
 
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US)
+    private val syncResultNotifier = SyncResultNotifier(applicationContext)
 
     override suspend fun doWork(): Result {
         Log.d(TAG, "Starting sync work")
@@ -93,12 +95,20 @@ class SyncWorker @AssistedInject constructor(
 
                 body?.results?.forEach { result ->
                     val clientId = result.clientId ?: return@forEach
+                    val notification = pending.firstOrNull { it.id == clientId } ?: return@forEach
 
                     if (result.success && result.serverId != null) {
                         notificationDao.markSynced(clientId, result.serverId)
+                        syncResultNotifier.notifySuccess(notification)
+                        log(
+                            SyncLogType.SUCCESS,
+                            "Lançamento enviado com sucesso",
+                            clientId
+                        )
                         successCount++
                     } else {
                         notificationDao.markSyncFailed(clientId, result.error)
+                        syncResultNotifier.notifyError(notification, result.error)
                         log(
                             SyncLogType.ERROR,
                             "Falha ao sincronizar notificação",
@@ -134,6 +144,7 @@ class SyncWorker @AssistedInject constructor(
                     log(SyncLogType.ERROR, "Token expirado", details = "HTTP 401")
                     pending.forEach { notification ->
                         notificationDao.markSyncFailed(notification.id, "Token expirado")
+                        syncResultNotifier.notifyError(notification, "Token expirado")
                     }
                     Result.failure()
                 } else if (errorCode == 429) {
@@ -149,6 +160,7 @@ class SyncWorker @AssistedInject constructor(
                     log(SyncLogType.ERROR, "Falha na sincronização", details = "HTTP $errorCode")
                     pending.forEach { notification ->
                         notificationDao.markSyncFailed(notification.id, "HTTP $errorCode")
+                        syncResultNotifier.notifyError(notification, "HTTP $errorCode")
                     }
                     Result.retry()
                 }
@@ -158,6 +170,7 @@ class SyncWorker @AssistedInject constructor(
             log(SyncLogType.ERROR, "Erro na sincronização", details = e.message)
             pending.forEach { notification ->
                 notificationDao.markSyncFailed(notification.id, e.message)
+                syncResultNotifier.notifyError(notification, e.message)
             }
             Result.retry()
         }

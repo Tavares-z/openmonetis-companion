@@ -17,17 +17,15 @@
     <!-- Home -->
     <string name="home_title">Início</string>
     <string name="home_pending_notifications">Notificações Pendentes</string>
-    <string name="home_synced_today">Sincronizadas Hoje</string>
+    <string name="home_synced_today">Enviados Hoje</string>
     <string name="home_last_sync">Última sincronização</string>
     <string name="home_never_synced">Nunca sincronizado</string>
 
     <!-- History -->
     <string name="history_title">Histórico</string>
     <string name="history_empty">Nenhuma notificação capturada</string>
-    <string name="history_filter_all">Todos</string>
     <string name="history_filter_pending">Pendentes</string>
-    <string name="history_filter_synced">Sincronizados</string>
-    <string name="history_filter_failed">Falha</string>
+    <string name="history_filter_sent">Enviados</string>
 
     <!-- Settings -->
     <string name="settings_title">Configurações</string>
@@ -81,6 +79,12 @@
     <!-- Notifications -->
     <string name="notification_channel_sync">Sincronização</string>
     <string name="notification_channel_sync_description">Notificações de sincronização</string>
+    <string name="notification_channel_sync_results">Resultados de envio</string>
+    <string name="notification_channel_sync_results_description">Notificações de lançamentos enviados ou com erro</string>
     <string name="notification_sync_success">%d notificações sincronizadas</string>
     <string name="notification_sync_failed">Falha na sincronização</string>
+    <string name="notification_entry_sent_title">Lançamento enviado com sucesso</string>
+    <string name="notification_entry_failed_title">Erro ao enviar lançamento</string>
+    <string name="notification_entry_generic_success">Lançamento enviado</string>
+    <string name="notification_entry_generic_error">Erro no envio</string>
 </resources>

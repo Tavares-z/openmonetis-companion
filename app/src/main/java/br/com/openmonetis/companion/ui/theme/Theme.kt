@@ -11,62 +11,62 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 
-// OpenMonetis Brand Colors - Terracotta Orange
-val Primary = Color(0xFFE87040)
-val PrimaryVariant = Color(0xFFD45D30)
-val Secondary = Color(0xFF8B7355)
-val SecondaryVariant = Color(0xFF6B5A45)
+// Brand palette converted from the project's OKLCH tokens.
+val Primary = Color(0xFFFF7733)
+val PrimaryVariant = Color(0xFFF2EDE8)
+val Secondary = Color(0xFFF5F2EF)
+val SecondaryVariant = Color(0xFFE6DDD6)
 
-val Success = Color(0xFF22C55E)
-val Warning = Color(0xFFF59E0B)
-val Error = Color(0xFFDC2626)
+val Success = Color(0xFF0E9D6E)
+val Warning = Color(0xFFF7A439)
+val Error = Color(0xFFD40C1A)
 
 private val LightColorScheme = lightColorScheme(
     primary = Primary,
-    onPrimary = Color.White,
-    primaryContainer = Color(0xFFFDE8DB),
-    onPrimaryContainer = Color(0xFF3D1F0F),
+    onPrimary = Color(0xFF0F0D0C),
+    primaryContainer = Color(0xFFF2EDE8),
+    onPrimaryContainer = Color(0xFF2A2523),
     secondary = Secondary,
-    onSecondary = Color.White,
-    secondaryContainer = Color(0xFFE8E0D5),
-    onSecondaryContainer = Color(0xFF2D2620),
-    tertiary = Color(0xFFB87333),
-    onTertiary = Color.White,
+    onSecondary = Color(0xFF322C2A),
+    secondaryContainer = Color(0xFFF0EEEC),
+    onSecondaryContainer = Color(0xFF2A2523),
+    tertiary = Warning,
+    onTertiary = Color(0xFF1E1400),
     error = Error,
-    onError = Color.White,
-    errorContainer = Color(0xFFFEE2E2),
-    onErrorContainer = Color(0xFF7F1D1D),
-    background = Color(0xFFF7F4F0),
-    onBackground = Color(0xFF2D2926),
-    surface = Color.White,
-    onSurface = Color(0xFF2D2926),
-    surfaceVariant = Color(0xFFF0ECE8),
-    onSurfaceVariant = Color(0xFF6B635C),
-    outline = Color(0xFFD9D4CE),
+    onError = Color(0xFFFCF7F6),
+    errorContainer = Color(0xFFF2EDE8),
+    onErrorContainer = Error,
+    background = Color(0xFFF8F6F4),
+    onBackground = Color(0xFF2A2523),
+    surface = Color(0xFFFDFBFA),
+    onSurface = Color(0xFF2A2523),
+    surfaceVariant = Color(0xFFF0EEEC),
+    onSurfaceVariant = Color(0xFF676260),
+    outline = Color(0xFFE6DDD6),
 )
 
 private val DarkColorScheme = darkColorScheme(
-    primary = Color(0xFFE87040),
-    onPrimary = Color(0xFF2B2B2B),
-    primaryContainer = Color(0xFF5C2D1A),
-    onPrimaryContainer = Color(0xFFFDE8DB),
-    secondary = Color(0xFFA08B70),
-    onSecondary = Color(0xFF2D2620),
-    secondaryContainer = Color(0xFF4A3D30),
-    onSecondaryContainer = Color(0xFFE8E0D5),
-    tertiary = Color(0xFFD4915C),
-    onTertiary = Color(0xFF2E1A0A),
-    error = Color(0xFFF87171),
-    onError = Color(0xFF7F1D1D),
-    errorContainer = Color(0xFF991B1B),
-    onErrorContainer = Color(0xFFFEE2E2),
-    background = Color(0xFF2B2B2B),
-    onBackground = Color(0xFFE8E4DC),
-    surface = Color(0xFF3A3836),
-    onSurface = Color(0xFFE8E4DC),
-    surfaceVariant = Color(0xFF4A4643),
-    onSurfaceVariant = Color(0xFFB0A99F),
-    outline = Color(0xFF5C5650),
+    primary = Color(0xFFFF7733),
+    onPrimary = Color(0xFF0F0D0C),
+    primaryContainer = Color(0xFF373533),
+    onPrimaryContainer = Color(0xFFEBE7E2),
+    secondary = Color(0xFF2D2B29),
+    onSecondary = Color(0xFFEBE7E2),
+    secondaryContainer = Color(0xFF343231),
+    onSecondaryContainer = Color(0xFFEBE7E2),
+    tertiary = Color(0xFFF37515),
+    onTertiary = Color(0xFF130900),
+    error = Color(0xFFE6443A),
+    onError = Color(0xFFFCF7F6),
+    errorContainer = Color(0xFF373533),
+    onErrorContainer = Color(0xFFFCF7F6),
+    background = Color(0xFF1C1A19),
+    onBackground = Color(0xFFEBE7E2),
+    surface = Color(0xFF242221),
+    onSurface = Color(0xFFEBE7E2),
+    surfaceVariant = Color(0xFF343231),
+    onSurfaceVariant = Color(0xFFAAA7A4),
+    outline = Color(0xFF3C3A39),
 )
 
 @Composable

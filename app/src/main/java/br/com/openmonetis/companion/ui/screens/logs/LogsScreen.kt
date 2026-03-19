@@ -169,6 +169,22 @@ private fun LogCard(log: LogUiItem) {
             )
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
+                if (log.entryLabel != null) {
+                    Text(
+                        text = log.entryLabel,
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    if (log.entryDetails != null) {
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = log.entryDetails,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
                 Text(
                     text = log.message,
                     style = MaterialTheme.typography.bodyMedium

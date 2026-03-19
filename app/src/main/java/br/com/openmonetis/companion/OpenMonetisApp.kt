@@ -36,10 +36,20 @@ class OpenMonetisApp : Application(), Configuration.Provider {
             description = getString(R.string.notification_channel_sync_description)
         }
 
+        val syncResultsChannel = NotificationChannel(
+            CHANNEL_SYNC_RESULTS,
+            getString(R.string.notification_channel_sync_results),
+            NotificationManager.IMPORTANCE_DEFAULT
+        ).apply {
+            description = getString(R.string.notification_channel_sync_results_description)
+        }
+
         notificationManager.createNotificationChannel(syncChannel)
+        notificationManager.createNotificationChannel(syncResultsChannel)
     }
 
     companion object {
         const val CHANNEL_SYNC = "sync_channel"
+        const val CHANNEL_SYNC_RESULTS = "sync_results_channel"
     }
 }

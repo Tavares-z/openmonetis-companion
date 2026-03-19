@@ -1,5 +1,9 @@
 package br.com.openmonetis.companion.ui.screens.history
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -36,15 +40,21 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import br.com.openmonetis.companion.R
 import br.com.openmonetis.companion.data.local.entities.SyncStatus
+import br.com.openmonetis.companion.ui.components.CapturedNotificationDetails
+import br.com.openmonetis.companion.ui.components.CapturedNotificationDetailsDialog
 import com.google.accompanist.drawablepainter.rememberDrawablePainter
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -54,6 +64,37 @@ fun HistoryScreen(
     viewModel: HistoryViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
+    var selectedNotification by remember { mutableStateOf<NotificationUiItem?>(null) }
+
+    selectedNotification?.let { notification ->
+        CapturedNotificationDetailsDialog(
+            notification = notification.toDetails(),
+            onDismiss = { selectedNotification = null },
+            onCopyOriginalText = {
+                copyNotificationText(context, notification.text)
+                Toast.makeText(context, "Texto copiado", Toast.LENGTH_SHORT).show()
+            },
+            onRetry = if (notification.syncStatus == SyncStatus.SYNCED || notification.syncStatus == SyncStatus.PROCESSED) {
+                null
+            } else {
+                {
+                    viewModel.retryNotification(notification.id)
+                    selectedNotification = null
+                    Toast.makeText(context, "Lançamento marcado para reenvio", Toast.LENGTH_SHORT).show()
+                }
+            },
+            onDiscard = if (notification.syncStatus == SyncStatus.SYNCED || notification.syncStatus == SyncStatus.PROCESSED) {
+                null
+            } else {
+                {
+                    viewModel.discardNotification(notification.id)
+                    selectedNotification = null
+                    Toast.makeText(context, "Lançamento descartado", Toast.LENGTH_SHORT).show()
+                }
+            }
+        )
+    }
 
     Scaffold(
         topBar = {
@@ -113,7 +154,8 @@ fun HistoryScreen(
                         ) { notification ->
                             NotificationCard(
                                 notification = notification,
-                                onDelete = { viewModel.deleteNotification(notification.id) }
+                                onDelete = { viewModel.deleteNotification(notification.id) },
+                                onClick = { selectedNotification = notification }
                             )
                         }
                     }
@@ -135,24 +177,14 @@ private fun FilterChipsRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         FilterChip(
-            selected = selectedFilter == SyncStatusFilter.ALL,
-            onClick = { onFilterSelected(SyncStatusFilter.ALL) },
-            label = { Text("Todos") }
+            selected = selectedFilter == SyncStatusFilter.SENT,
+            onClick = { onFilterSelected(SyncStatusFilter.SENT) },
+            label = { Text("Enviados") }
         )
         FilterChip(
             selected = selectedFilter == SyncStatusFilter.PENDING,
             onClick = { onFilterSelected(SyncStatusFilter.PENDING) },
             label = { Text("Pendentes") }
-        )
-        FilterChip(
-            selected = selectedFilter == SyncStatusFilter.SYNCED,
-            onClick = { onFilterSelected(SyncStatusFilter.SYNCED) },
-            label = { Text("Sincronizados") }
-        )
-        FilterChip(
-            selected = selectedFilter == SyncStatusFilter.FAILED,
-            onClick = { onFilterSelected(SyncStatusFilter.FAILED) },
-            label = { Text("Falha") }
         )
     }
 }
@@ -160,17 +192,21 @@ private fun FilterChipsRow(
 @Composable
 private fun NotificationCard(
     notification: NotificationUiItem,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onClick: () -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
             containerColor = when (notification.syncStatus) {
-                SyncStatus.SYNCED -> MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)
-                SyncStatus.SYNC_FAILED -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f)
+                SyncStatus.SYNCED, SyncStatus.PROCESSED ->
+                    MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)
+                SyncStatus.SYNC_FAILED ->
+                    MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f)
                 else -> MaterialTheme.colorScheme.surfaceVariant
             }
-        )
+        ),
+        onClick = onClick
     ) {
         Column(
             modifier = Modifier.padding(16.dp)
@@ -270,10 +306,27 @@ private fun NotificationCard(
     }
 }
 
+private fun NotificationUiItem.toDetails() = CapturedNotificationDetails(
+    appName = appName,
+    title = title,
+    text = text,
+    parsedAmount = parsedAmount,
+    parsedName = parsedName,
+    syncStatus = syncStatus,
+    timestampFull = timestampFull,
+    syncError = syncError
+)
+
+private fun copyNotificationText(context: Context, text: String) {
+    val clipboardManager = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+    clipboardManager.setPrimaryClip(ClipData.newPlainText("captured_notification", text))
+}
+
 @Composable
 private fun SyncStatusIcon(status: SyncStatus) {
     val (icon, tint) = when (status) {
-        SyncStatus.SYNCED -> Icons.Default.CheckCircle to MaterialTheme.colorScheme.primary
+        SyncStatus.SYNCED, SyncStatus.PROCESSED ->
+            Icons.Default.CheckCircle to MaterialTheme.colorScheme.primary
         SyncStatus.SYNC_FAILED -> Icons.Default.Error to MaterialTheme.colorScheme.error
         else -> Icons.Default.Schedule to MaterialTheme.colorScheme.onSurfaceVariant
     }
