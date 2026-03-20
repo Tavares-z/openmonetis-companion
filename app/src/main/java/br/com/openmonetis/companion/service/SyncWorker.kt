@@ -40,7 +40,7 @@ class SyncWorker @AssistedInject constructor(
 ) : CoroutineWorker(context, params) {
 
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US)
-    private val syncResultNotifier = SyncResultNotifier(applicationContext)
+    private val syncResultNotifier = SyncResultNotifier(applicationContext, secureStorage)
 
     override suspend fun doWork(): Result {
         Log.d(TAG, "Starting sync work")

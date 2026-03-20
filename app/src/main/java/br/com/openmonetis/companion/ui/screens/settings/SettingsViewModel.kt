@@ -55,7 +55,9 @@ data class SettingsUiState(
     val appSearchQuery: String = "",
     val isLoadingApps: Boolean = false,
     val isExportingNotifications: Boolean = false,
-    val exportMessage: String? = null
+    val exportMessage: String? = null,
+    val notifySyncSuccess: Boolean = true,
+    val notifySyncError: Boolean = true
 )
 
 @HiltViewModel
@@ -89,7 +91,9 @@ class SettingsViewModel @Inject constructor(
                 tokenName = tokenName,
                 isConnected = hasToken && serverUrl.isNotEmpty(),
                 hasNotificationPermission = hasPermission,
-                appVersion = appVersion
+                appVersion = appVersion,
+                notifySyncSuccess = secureStorage.notifySyncSuccess,
+                notifySyncError = secureStorage.notifySyncError
             )
 
             loadMonitoredApps()
@@ -329,6 +333,16 @@ class SettingsViewModel @Inject constructor(
 
     fun clearExportMessage() {
         _uiState.value = _uiState.value.copy(exportMessage = null)
+    }
+
+    fun setNotifySyncSuccess(enabled: Boolean) {
+        secureStorage.notifySyncSuccess = enabled
+        _uiState.value = _uiState.value.copy(notifySyncSuccess = enabled)
+    }
+
+    fun setNotifySyncError(enabled: Boolean) {
+        secureStorage.notifySyncError = enabled
+        _uiState.value = _uiState.value.copy(notifySyncError = enabled)
     }
 
     fun openNotificationSettings(): Intent {

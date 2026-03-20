@@ -14,10 +14,12 @@ import br.com.openmonetis.companion.R
 import br.com.openmonetis.companion.data.local.entities.NotificationEntity
 
 class SyncResultNotifier(
-    private val context: Context
+    private val context: Context,
+    private val secureStorage: SecureStorage
 ) {
 
     fun notifySuccess(notification: NotificationEntity) {
+        if (!secureStorage.notifySyncSuccess) return
         notify(
             notification = notification,
             title = context.getString(R.string.notification_entry_sent_title),
@@ -27,6 +29,7 @@ class SyncResultNotifier(
     }
 
     fun notifyError(notification: NotificationEntity, error: String?) {
+        if (!secureStorage.notifySyncError) return
         notify(
             notification = notification,
             title = context.getString(R.string.notification_entry_failed_title),

@@ -230,6 +230,28 @@ fun SettingsScreen(
                 )
             }
 
+            item {
+                SectionHeader(title = "Notificações")
+            }
+
+            item {
+                NotificationPreferenceItem(
+                    title = "Confirmar envio com notificação",
+                    subtitle = "Avisa no telefone quando um lançamento for enviado com sucesso",
+                    checked = uiState.notifySyncSuccess,
+                    onCheckedChange = viewModel::setNotifySyncSuccess
+                )
+            }
+
+            item {
+                NotificationPreferenceItem(
+                    title = "Avisar erro de envio",
+                    subtitle = "Mostra uma notificação quando houver falha ao enviar um lançamento",
+                    checked = uiState.notifySyncError,
+                    onCheckedChange = viewModel::setNotifySyncError
+                )
+            }
+
             // Monitored Apps Section
             item {
                 Row(
@@ -402,6 +424,48 @@ fun SettingsScreen(
             item {
                 Spacer(modifier = Modifier.height(16.dp))
             }
+        }
+    }
+}
+
+@Composable
+private fun NotificationPreferenceItem(
+    title: String,
+    subtitle: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        onClick = { onCheckedChange(!checked) }
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleSmall
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Spacer(modifier = Modifier.width(12.dp))
+            Switch(
+                checked = checked,
+                onCheckedChange = onCheckedChange
+            )
         }
     }
 }
