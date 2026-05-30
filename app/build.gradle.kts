@@ -14,8 +14,8 @@ android {
         applicationId = "br.com.openmonetis.companion"
         minSdk = 31 // Android 12
         targetSdk = 35
-        versionCode = 8
-        versionName = "1.5.1"
+        versionCode = 9
+        versionName = "1.5.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -118,4 +118,7 @@ dependencies {
 
     // Accompanist
     implementation(libs.accompanist.drawablepainter)
+
+    // Tests
+    testImplementation("junit:junit:4.13.2")
 }

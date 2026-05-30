@@ -2,6 +2,7 @@ package br.com.openmonetis.companion.ui.screens.home
 
 import android.content.ComponentName
 import android.content.Context
+import android.content.Intent
 import android.graphics.drawable.Drawable
 import android.provider.Settings
 import androidx.compose.runtime.Immutable
@@ -243,9 +244,12 @@ class HomeViewModel @Inject constructor(
         return enabledListeners?.contains(componentName.flattenToString()) == true
     }
 
-    fun requestNotificationPermission() {
-        // This should open the notification listener settings
-        // The actual navigation should be handled by the UI
+    fun openNotificationSettings(): Intent {
+        return Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
+    }
+
+    fun refreshPermissionStatus() {
+        checkNotificationPermission()
     }
 
     fun refreshData() {

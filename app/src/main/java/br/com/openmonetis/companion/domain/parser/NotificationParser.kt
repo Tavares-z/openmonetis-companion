@@ -55,7 +55,8 @@ class NotificationParser @Inject constructor() {
             " cartao final", " cartão final", " com final", " final ",
             " no dia ", " às ", " as ", " dia ",
             " - r$", " - R$", ". ", ", ", " boas compras",
-            " e recebeu", " e ganhou", " cashback", "\n"
+            " e recebeu", " e ganhou", " cashback",
+            " o valor vai entrar"
         )
 
         // Palavras que aparecem após "em/no/na" mas NÃO são estabelecimentos
@@ -67,11 +68,11 @@ class NotificationParser @Inject constructor() {
         // Padrões para encontrar início do estabelecimento (em ordem de prioridade)
         val startPatterns = listOf(
             // Padrão 1: "R$ X,XX em [ESTABELECIMENTO]" - mais confiável
-            Regex("""R\$\s*[\d.,]+\s+(?:APROVADA\s+)?(?:em|a)\s+([A-Za-zÀ-ú0-9\s&.*/_-]+)""", RegexOption.IGNORE_CASE),
+            Regex("""R\$\s*[\d.,]+\s+(?:APROVADA\s+)?(?:em|a)\s+([A-Za-zÀ-ú0-9\t &.*/_-]+)""", RegexOption.IGNORE_CASE),
             // Padrão 2: "comprar/pagou/comprou/gastou R$ X em/a [ESTABELECIMENTO]"
-            Regex("""(?:comprar|pagou|comprou|gastou)\s+R\$\s*[\d.,]+\s+(?:em|a)\s+([A-Za-zÀ-ú0-9\s&.*/_-]+)""", RegexOption.IGNORE_CASE),
+            Regex("""(?:comprar|pagou|comprou|gastou)\s+R\$\s*[\d.,]+\s+(?:em|a)\s+([A-Za-zÀ-ú0-9\t &.*/_-]+)""", RegexOption.IGNORE_CASE),
             // Padrão 3: "em/no/na [ESTABELECIMENTO]" - fallback genérico, filtra falsos positivos
-            Regex("""(?:em|no|na)\s+([A-ZÀ-Ú][A-Za-zÀ-ú0-9\s&.*/_-]+)""", RegexOption.IGNORE_CASE)
+            Regex("""(?:em|no|na)\s+([A-ZÀ-Ú][A-Za-zÀ-ú0-9\t &.*/_-]+)""", RegexOption.IGNORE_CASE)
         )
 
         for (pattern in startPatterns) {
@@ -109,6 +110,3 @@ class NotificationParser @Inject constructor() {
         return null
     }
 }
-
-
-

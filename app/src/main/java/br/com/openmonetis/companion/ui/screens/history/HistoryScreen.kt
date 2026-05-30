@@ -260,22 +260,12 @@ private fun NotificationCard(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            notification.title?.let { title ->
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleSmall,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-            }
-
             Text(
-                text = notification.text,
-                style = MaterialTheme.typography.bodyMedium,
-                maxLines = 2,
+                text = notification.parsedName ?: notification.title ?: notification.text,
+                style = MaterialTheme.typography.titleSmall,
+                maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurface
             )
 
             // Parsed data
@@ -289,15 +279,6 @@ private fun NotificationCard(
                             text = amount,
                             style = MaterialTheme.typography.labelLarge,
                             color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                    notification.parsedName?.let { name ->
-                        Text(
-                            text = name,
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
@@ -328,6 +309,7 @@ private fun SyncStatusIcon(status: SyncStatus) {
         SyncStatus.SYNCED, SyncStatus.PROCESSED ->
             Icons.Default.CheckCircle to MaterialTheme.colorScheme.primary
         SyncStatus.SYNC_FAILED -> Icons.Default.Error to MaterialTheme.colorScheme.error
+        SyncStatus.DISCARDED -> Icons.Default.Delete to MaterialTheme.colorScheme.onSurfaceVariant
         else -> Icons.Default.Schedule to MaterialTheme.colorScheme.onSurfaceVariant
     }
 

@@ -1,6 +1,12 @@
 package br.com.openmonetis.companion.ui.screens.settings
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -19,6 +25,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
@@ -26,7 +33,6 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.FileDownload
-import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -48,17 +54,19 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
-import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.repeatOnLifecycle
+import androidx.core.content.ContextCompat
 import br.com.openmonetis.companion.R
 import com.google.accompanist.drawablepainter.rememberDrawablePainter
 
@@ -71,12 +79,41 @@ fun SettingsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
-    val lifecycleOwner = LocalLifecycleOwner.current
+    val uriHandler = LocalUriHandler.current
+    var pendingAlertPreference by remember { mutableStateOf<((Boolean) -> Unit)?>(null) }
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        pendingAlertPreference?.invoke(granted)
+        pendingAlertPreference = null
+        if (!granted) {
+            Toast.makeText(
+                context,
+                "Permissão necessária para exibir alertas do Companion",
+                Toast.LENGTH_LONG
+            ).show()
+        }
+    }
 
-    // Refresh permission status when returning from settings
-    LaunchedEffect(lifecycleOwner) {
-        lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
-            viewModel.refreshPermissionStatus()
+    fun updateAlertPreference(
+        enabled: Boolean,
+        onCheckedChange: (Boolean) -> Unit
+    ) {
+        if (!enabled || Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+            onCheckedChange(enabled)
+            return
+        }
+
+        val hasPermission = ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.POST_NOTIFICATIONS
+        ) == PackageManager.PERMISSION_GRANTED
+
+        if (hasPermission) {
+            onCheckedChange(true)
+        } else {
+            pendingAlertPreference = onCheckedChange
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
     }
 
@@ -216,22 +253,8 @@ fun SettingsScreen(
                 )
             }
 
-            // Notification Permission Section
             item {
-                SectionHeader(title = stringResource(R.string.settings_notification_permission))
-            }
-
-            item {
-                PermissionCard(
-                    hasPermission = uiState.hasNotificationPermission,
-                    onRequestPermission = {
-                        context.startActivity(viewModel.openNotificationSettings())
-                    }
-                )
-            }
-
-            item {
-                SectionHeader(title = "Notificações")
+                SectionHeader(title = "Alertas do Companion")
             }
 
             item {
@@ -239,7 +262,9 @@ fun SettingsScreen(
                     title = "Confirmar envio com notificação",
                     subtitle = "Avisa no telefone quando um lançamento for enviado com sucesso",
                     checked = uiState.notifySyncSuccess,
-                    onCheckedChange = viewModel::setNotifySyncSuccess
+                    onCheckedChange = { enabled ->
+                        updateAlertPreference(enabled, viewModel::setNotifySyncSuccess)
+                    }
                 )
             }
 
@@ -248,7 +273,9 @@ fun SettingsScreen(
                     title = "Avisar erro de envio",
                     subtitle = "Mostra uma notificação quando houver falha ao enviar um lançamento",
                     checked = uiState.notifySyncError,
-                    onCheckedChange = viewModel::setNotifySyncError
+                    onCheckedChange = { enabled ->
+                        updateAlertPreference(enabled, viewModel::setNotifySyncError)
+                    }
                 )
             }
 
@@ -395,35 +422,97 @@ fun SettingsScreen(
             }
 
             item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surface
-                    )
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = stringResource(R.string.settings_version),
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                        Text(
-                            text = uiState.appVersion,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                AboutCard(
+                    appVersion = uiState.appVersion,
+                    onOpenCompanion = {
+                        uriHandler.openUri("https://github.com/felipegcoutinho/openmonetis-companion")
+                    },
+                    onOpenOpenMonetis = {
+                        uriHandler.openUri("https://github.com/felipegcoutinho/openmonetis")
+                    },
+                    onOpenAuthor = {
+                        uriHandler.openUri("https://github.com/felipegcoutinho")
                     }
-                }
+                )
             }
 
             item {
                 Spacer(modifier = Modifier.height(16.dp))
             }
+        }
+    }
+}
+
+@Composable
+private fun AboutCard(
+    appVersion: String,
+    onOpenCompanion: () -> Unit,
+    onOpenOpenMonetis: () -> Unit,
+    onOpenAuthor: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+    ) {
+        Column(
+            modifier = Modifier.padding(vertical = 4.dp)
+        ) {
+            AboutRow(
+                title = stringResource(R.string.settings_version),
+                value = appVersion
+            )
+            HorizontalDivider()
+            AboutRow(
+                title = "Código-fonte do Companion",
+                value = "felipegcoutinho/openmonetis-companion",
+                onClick = onOpenCompanion
+            )
+            HorizontalDivider()
+            AboutRow(
+                title = "Projeto principal",
+                value = "felipegcoutinho/openmonetis",
+                onClick = onOpenOpenMonetis
+            )
+            HorizontalDivider()
+            AboutRow(
+                title = "Desenvolvido por",
+                value = "felipegcoutinho",
+                onClick = onOpenAuthor
+            )
+        }
+    }
+}
+
+@Composable
+private fun AboutRow(
+    title: String,
+    value: String,
+    onClick: (() -> Unit)? = null
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+            .padding(16.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(text = title, style = MaterialTheme.typography.bodyMedium)
+            Text(
+                text = value,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        if (onClick != null) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+                contentDescription = "Abrir $title",
+                tint = MaterialTheme.colorScheme.primary
+            )
         }
     }
 }
@@ -682,61 +771,6 @@ private fun ServerCard(
                 text = tokenName.ifEmpty { "-" },
                 style = MaterialTheme.typography.bodyMedium
             )
-        }
-    }
-}
-
-@Composable
-private fun PermissionCard(
-    hasPermission: Boolean,
-    onRequestPermission: () -> Unit
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = if (hasPermission) {
-                MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)
-            } else {
-                MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f)
-            }
-        ),
-        onClick = if (!hasPermission) onRequestPermission else ({})
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Default.Notifications,
-                contentDescription = null,
-                tint = if (hasPermission) {
-                    MaterialTheme.colorScheme.primary
-                } else {
-                    MaterialTheme.colorScheme.error
-                }
-            )
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = if (hasPermission) {
-                        stringResource(R.string.settings_permission_granted)
-                    } else {
-                        stringResource(R.string.settings_grant_permission)
-                    },
-                    style = MaterialTheme.typography.titleSmall
-                )
-                Text(
-                    text = if (hasPermission) {
-                        "O app pode capturar notificações financeiras"
-                    } else {
-                        "Toque para abrir as configurações"
-                    },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
         }
     }
 }

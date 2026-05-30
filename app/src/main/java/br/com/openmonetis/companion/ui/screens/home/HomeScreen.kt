@@ -23,6 +23,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Error
@@ -46,6 +47,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -63,6 +65,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 import br.com.openmonetis.companion.R
 import br.com.openmonetis.companion.data.local.entities.SyncStatus
 import br.com.openmonetis.companion.ui.components.CapturedNotificationDetails
@@ -80,7 +85,14 @@ fun HomeScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
     var selectedNotification by remember { mutableStateOf<NotificationUiItem?>(null) }
+
+    LaunchedEffect(lifecycleOwner) {
+        lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            viewModel.refreshPermissionStatus()
+        }
+    }
 
     selectedNotification?.let { notification ->
         CapturedNotificationDetailsDialog(
@@ -173,18 +185,22 @@ fun HomeScreen(
             }
 
             // Permission Status Card
-            item(key = "permission") {
-                PermissionCard(
-                    hasPermission = uiState.hasNotificationPermission,
-                    onRequestPermission = viewModel::requestNotificationPermission
-                )
+            if (!uiState.hasNotificationPermission) {
+                item(key = "permission") {
+                    PermissionCard(
+                        onRequestPermission = {
+                            context.startActivity(viewModel.openNotificationSettings())
+                        }
+                    )
+                }
             }
 
             // Monitored Apps Summary
             item(key = "monitored_apps") {
                 MonitoredAppsCard(
                     enabledAppsCount = uiState.enabledAppsCount,
-                    monitoredApps = uiState.monitoredApps
+                    monitoredApps = uiState.monitoredApps,
+                    onClick = onNavigateToSettings
                 )
             }
 
@@ -371,22 +387,12 @@ private fun NotificationCard(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            notification.title?.let { title ->
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleSmall,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-            }
-
             Text(
-                text = notification.text,
-                style = MaterialTheme.typography.bodyMedium,
-                maxLines = 2,
+                text = notification.parsedName ?: notification.title ?: notification.text,
+                style = MaterialTheme.typography.titleSmall,
+                maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurface
             )
 
             // Parsed data and status
@@ -406,15 +412,6 @@ private fun NotificationCard(
                             text = amount,
                             style = MaterialTheme.typography.labelLarge,
                             color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                    notification.parsedName?.let { name ->
-                        Text(
-                            text = name,
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
@@ -447,7 +444,8 @@ private fun SyncStatusBadge(status: SyncStatus) {
     val (icon, text, color) = when (status) {
         SyncStatus.SYNCED,
         SyncStatus.PROCESSED -> Triple(Icons.Default.CheckCircle, "Enviado", Success)
-        SyncStatus.SYNC_FAILED -> Triple(Icons.Default.Error, "Pendente", MaterialTheme.colorScheme.error)
+        SyncStatus.SYNC_FAILED -> Triple(Icons.Default.Error, "Falha no envio", MaterialTheme.colorScheme.error)
+        SyncStatus.DISCARDED -> Triple(Icons.Default.Delete, "Descartado", MaterialTheme.colorScheme.onSurfaceVariant)
         else -> Triple(Icons.Default.Schedule, "Pendente", MaterialTheme.colorScheme.onSurfaceVariant)
     }
 
@@ -543,19 +541,14 @@ private fun StatItem(
 
 @Composable
 private fun PermissionCard(
-    hasPermission: Boolean,
     onRequestPermission: () -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = if (hasPermission) {
-                MaterialTheme.colorScheme.secondaryContainer
-            } else {
-                MaterialTheme.colorScheme.errorContainer
-            }
+            containerColor = MaterialTheme.colorScheme.errorContainer
         ),
-        onClick = if (!hasPermission) onRequestPermission else ({})
+        onClick = onRequestPermission
     ) {
         Row(
             modifier = Modifier
@@ -567,36 +560,25 @@ private fun PermissionCard(
             Icon(
                 imageVector = Icons.Default.Notifications,
                 contentDescription = null,
-                tint = if (hasPermission) {
-                    MaterialTheme.colorScheme.onSecondaryContainer
-                } else {
-                    MaterialTheme.colorScheme.onErrorContainer
-                }
+                tint = MaterialTheme.colorScheme.onErrorContainer
             )
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = stringResource(R.string.settings_notification_permission),
+                    text = "Ative a captura de notificações",
                     style = MaterialTheme.typography.titleSmall,
-                    color = if (hasPermission) {
-                        MaterialTheme.colorScheme.onSecondaryContainer
-                    } else {
-                        MaterialTheme.colorScheme.onErrorContainer
-                    }
+                    color = MaterialTheme.colorScheme.onErrorContainer
                 )
                 Text(
-                    text = if (hasPermission) {
-                        stringResource(R.string.settings_permission_granted)
-                    } else {
-                        stringResource(R.string.settings_grant_permission)
-                    },
+                    text = "Toque para permitir que o app identifique suas compras automaticamente",
                     style = MaterialTheme.typography.bodySmall,
-                    color = if (hasPermission) {
-                        MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
-                    } else {
-                        MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.7f)
-                    }
+                    color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.7f)
                 )
             }
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onErrorContainer
+            )
         }
     }
 }
@@ -604,13 +586,19 @@ private fun PermissionCard(
 @Composable
 private fun MonitoredAppsCard(
     enabledAppsCount: Int,
-    monitoredApps: List<MonitoredAppIcon>
+    monitoredApps: List<MonitoredAppIcon>,
+    onClick: () -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        )
+            containerColor = if (enabledAppsCount == 0) {
+                MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f)
+            } else {
+                MaterialTheme.colorScheme.surface
+            }
+        ),
+        onClick = onClick
     ) {
         Row(
             modifier = Modifier
@@ -625,7 +613,11 @@ private fun MonitoredAppsCard(
                     style = MaterialTheme.typography.titleSmall
                 )
                 Text(
-                    text = "$enabledAppsCount apps configurados",
+                    text = if (enabledAppsCount == 0) {
+                        "Nenhum app configurado. Toque para selecionar."
+                    } else {
+                        "$enabledAppsCount apps configurados"
+                    },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -662,6 +654,12 @@ private fun MonitoredAppsCard(
                         }
                     }
                 }
+            } else {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onErrorContainer
+                )
             }
         }
     }

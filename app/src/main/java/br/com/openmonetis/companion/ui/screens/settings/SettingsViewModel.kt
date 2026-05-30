@@ -1,18 +1,15 @@
 package br.com.openmonetis.companion.ui.screens.settings
 
-import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.graphics.drawable.Drawable
-import android.provider.Settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import br.com.openmonetis.companion.data.local.dao.AppConfigDao
 import br.com.openmonetis.companion.data.local.dao.NotificationDao
 import br.com.openmonetis.companion.data.local.entities.AppConfigEntity
-import br.com.openmonetis.companion.service.CaptureNotificationListenerService
 import br.com.openmonetis.companion.util.NotificationsExporter
 import br.com.openmonetis.companion.util.SecureStorage
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -42,7 +39,6 @@ data class SettingsUiState(
     val serverUrl: String = "",
     val tokenName: String = "",
     val isConnected: Boolean = false,
-    val hasNotificationPermission: Boolean = false,
     val monitoredApps: List<MonitoredAppUi> = emptyList(),
     val appVersion: String = "",
     val showDisconnectDialog: Boolean = false,
@@ -83,14 +79,12 @@ class SettingsViewModel @Inject constructor(
             val serverUrl = secureStorage.serverUrl ?: ""
             val tokenName = secureStorage.tokenName ?: ""
             val hasToken = secureStorage.accessToken != null
-            val hasPermission = isNotificationListenerEnabled()
             val appVersion = getAppVersion()
 
             _uiState.value = _uiState.value.copy(
                 serverUrl = serverUrl,
                 tokenName = tokenName,
                 isConnected = hasToken && serverUrl.isNotEmpty(),
-                hasNotificationPermission = hasPermission,
                 appVersion = appVersion,
                 notifySyncSuccess = secureStorage.notifySyncSuccess,
                 notifySyncError = secureStorage.notifySyncError
@@ -343,25 +337,6 @@ class SettingsViewModel @Inject constructor(
     fun setNotifySyncError(enabled: Boolean) {
         secureStorage.notifySyncError = enabled
         _uiState.value = _uiState.value.copy(notifySyncError = enabled)
-    }
-
-    fun openNotificationSettings(): Intent {
-        return Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
-    }
-
-    fun refreshPermissionStatus() {
-        _uiState.value = _uiState.value.copy(
-            hasNotificationPermission = isNotificationListenerEnabled()
-        )
-    }
-
-    private fun isNotificationListenerEnabled(): Boolean {
-        val componentName = ComponentName(context, CaptureNotificationListenerService::class.java)
-        val enabledListeners = Settings.Secure.getString(
-            context.contentResolver,
-            "enabled_notification_listeners"
-        )
-        return enabledListeners?.contains(componentName.flattenToString()) == true
     }
 
     private fun getAppVersion(): String {
