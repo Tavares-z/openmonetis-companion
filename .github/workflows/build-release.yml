@@ -46,10 +46,12 @@ jobs:
             -Pandroid.injected.signing.key.password="${KEY_PASSWORD}"
       
       - name: Rename APK
+        if: startsWith(github.ref, 'refs/tags/v')
         run: |
           mv app/build/outputs/apk/release/app-release.apk openmonetis-companion-${{ github.ref_name }}.apk
       
       - name: Create Release
+        if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v1
         with:
           files: openmonetis-companion-${{ github.ref_name }}.apk
