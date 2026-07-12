@@ -4,6 +4,8 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.graphics.drawable.Drawable
+import android.net.Uri
+import android.os.PowerManager
 import android.provider.Settings
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
@@ -59,6 +61,7 @@ data class HomeUiState(
     val syncedToday: Int = 0,
     val lastSyncTime: String? = null,
     val hasNotificationPermission: Boolean = false,
+    val hasBatteryOptimizationExemption: Boolean = true,
     val enabledAppsCount: Int = 0,
     val monitoredApps: List<MonitoredAppIcon> = emptyList(),
     val isRefreshing: Boolean = false,
@@ -89,6 +92,7 @@ class HomeViewModel @Inject constructor(
         loadStats()
         loadNotifications()
         checkNotificationPermission()
+        checkBatteryOptimization()
     }
 
     private fun loadStats() {
@@ -250,6 +254,30 @@ class HomeViewModel @Inject constructor(
 
     fun refreshPermissionStatus() {
         checkNotificationPermission()
+        checkBatteryOptimization()
+    }
+
+    /**
+     * Many OEMs (Xiaomi/MIUI, Samsung, Huawei...) aggressively kill the
+     * notification listener and delay WorkManager jobs unless the app is
+     * exempt from battery optimization - the most common real-world cause of
+     * "stopped capturing notifications" reports for this kind of app.
+     */
+    private fun checkBatteryOptimization() {
+        val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager
+        val isExempt = powerManager.isIgnoringBatteryOptimizations(context.packageName)
+        _uiState.value = _uiState.value.copy(hasBatteryOptimizationExemption = isExempt)
+    }
+
+    fun requestIgnoreBatteryOptimizationsIntent(): Intent {
+        return Intent(
+            Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+            Uri.parse("package:${context.packageName}")
+        )
+    }
+
+    fun openBatteryOptimizationSettings(): Intent {
+        return Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
     }
 
     fun refreshData() {

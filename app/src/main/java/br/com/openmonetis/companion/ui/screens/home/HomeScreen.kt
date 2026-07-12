@@ -1,5 +1,6 @@
 package br.com.openmonetis.companion.ui.screens.home
 
+import android.content.ActivityNotFoundException
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -24,6 +25,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.BatteryAlert
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Error
@@ -190,6 +192,21 @@ fun HomeScreen(
                     PermissionCard(
                         onRequestPermission = {
                             context.startActivity(viewModel.openNotificationSettings())
+                        }
+                    )
+                }
+            }
+
+            // Battery Optimization Card
+            if (!uiState.hasBatteryOptimizationExemption) {
+                item(key = "battery") {
+                    BatteryOptimizationCard(
+                        onRequestExemption = {
+                            try {
+                                context.startActivity(viewModel.requestIgnoreBatteryOptimizationsIntent())
+                            } catch (e: ActivityNotFoundException) {
+                                context.startActivity(viewModel.openBatteryOptimizationSettings())
+                            }
                         }
                     )
                 }
@@ -570,6 +587,50 @@ private fun PermissionCard(
                 )
                 Text(
                     text = "Toque para permitir que o app identifique suas compras automaticamente",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.7f)
+                )
+            }
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onErrorContainer
+            )
+        }
+    }
+}
+
+@Composable
+private fun BatteryOptimizationCard(
+    onRequestExemption: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.errorContainer
+        ),
+        onClick = onRequestExemption
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.BatteryAlert,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onErrorContainer
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Desative a otimização de bateria",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onErrorContainer
+                )
+                Text(
+                    text = "O sistema pode encerrar a captura em segundo plano sem isso, especialmente em aparelhos Xiaomi, Samsung e Huawei",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.7f)
                 )

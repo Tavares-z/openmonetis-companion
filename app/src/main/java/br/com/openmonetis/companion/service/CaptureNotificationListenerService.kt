@@ -83,6 +83,22 @@ class CaptureNotificationListenerService : NotificationListenerService() {
                 // Parse notification
                 val parsed = notificationParser.parse(packageName, title, text)
 
+                // Skip likely duplicates: same app + same amount posted twice
+                // within the window (common when a bank sends a "processing"
+                // notification followed by a "confirmed" one for one purchase)
+                val amount = parsed.amount
+                if (amount != null) {
+                    val duplicateCount = notificationDao.countRecentDuplicates(
+                        sourceApp = packageName,
+                        amount = amount,
+                        since = System.currentTimeMillis() - DUPLICATE_WINDOW_MS
+                    )
+                    if (duplicateCount > 0) {
+                        Log.d(TAG, "Skipping likely duplicate notification: $text")
+                        return@launch
+                    }
+                }
+
                 // Save to database
                 val notification = NotificationEntity(
                     sourceApp = packageName,
@@ -116,6 +132,7 @@ class CaptureNotificationListenerService : NotificationListenerService() {
 
     companion object {
         private const val TAG = "NotificationCapture"
+        private const val DUPLICATE_WINDOW_MS = 3 * 60 * 1000L
     }
 }
 

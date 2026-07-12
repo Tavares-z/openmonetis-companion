@@ -53,6 +53,18 @@ interface NotificationDao {
     @Query("SELECT COUNT(*) FROM notifications WHERE created_at >= :since")
     suspend fun countSince(since: Long): Int
 
+    /**
+     * Some banks post two notifications for the same purchase (e.g.
+     * "processando" then "aprovada"). Same app + same amount within a short
+     * window is treated as a duplicate to avoid creating two pre-lancamentos
+     * for one transaction.
+     */
+    @Query(
+        "SELECT COUNT(*) FROM notifications WHERE source_app = :sourceApp " +
+            "AND parsed_amount = :amount AND created_at >= :since"
+    )
+    suspend fun countRecentDuplicates(sourceApp: String, amount: Double, since: Long): Int
+
     @Query("SELECT COUNT(*) FROM notifications WHERE sync_status = :status AND created_at >= :since")
     suspend fun countSyncedSince(since: Long, status: SyncStatus = SyncStatus.SYNCED): Int
 
