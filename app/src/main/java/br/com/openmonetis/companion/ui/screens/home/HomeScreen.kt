@@ -95,6 +95,11 @@ fun HomeScreen(
     LaunchedEffect(lifecycleOwner) {
         lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
             viewModel.refreshPermissionStatus()
+            // Re-checks on every resume (not just app launch), so returning
+            // from the "allow install from this source" system screen without
+            // having actually installed shows the prompt again instead of
+            // requiring a full app restart.
+            viewModel.checkForUpdate()
         }
     }
 

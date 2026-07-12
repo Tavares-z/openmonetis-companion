@@ -101,7 +101,7 @@ class HomeViewModel @Inject constructor(
         checkForUpdate()
     }
 
-    private fun checkForUpdate() {
+    fun checkForUpdate() {
         viewModelScope.launch {
             val result = updateChecker.checkForUpdate()
             _uiState.value = _uiState.value.copy(availableUpdateSha = result?.shortSha)
@@ -123,8 +123,6 @@ class HomeViewModel @Inject constructor(
             if (file == null) {
                 return@launch
             }
-
-            _uiState.value = _uiState.value.copy(availableUpdateSha = null)
 
             val uri = FileProvider.getUriForFile(
                 context,
