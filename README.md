@@ -59,6 +59,7 @@
 - Setup guiado de conexão com servidor
 - Gatilhos de captura personalizáveis
 - Tema claro/escuro (segue sistema)
+- Verificação automática de atualizações ao abrir o app, com download e instalação direto pela tela inicial
 
 ---
 
@@ -81,7 +82,9 @@
 
 ## Instalação
 
-Baixe a última versão do APK na página de [Releases](https://github.com/felipegcoutinho/openmonetis-companion/releases).
+Este fork publica builds de debug automaticamente a cada push, na release fixa
+[`debug-latest`](https://github.com/Tavares-z/openmonetis-companion/releases/tag/debug-latest).
+Depois da instalação inicial, o app verifica sozinho por novas versões ao abrir.
 
 ### Requisitos
 
@@ -240,8 +243,8 @@ Este projeto está licenciado sob a **Creative Commons Attribution-NonCommercial
 ## Links
 
 - **OpenMonetis (Web App):** [github.com/felipegcoutinho/openmonetis](https://github.com/felipegcoutinho/openmonetis)
-- **Releases:** [github.com/felipegcoutinho/openmonetis-companion/releases](https://github.com/felipegcoutinho/openmonetis-companion/releases)
-- **Issues:** [github.com/felipegcoutinho/openmonetis-companion/issues](https://github.com/felipegcoutinho/openmonetis-companion/issues)
+- **Upstream do Companion:** [github.com/felipegcoutinho/openmonetis-companion](https://github.com/felipegcoutinho/openmonetis-companion)
+- **Releases deste fork:** [github.com/Tavares-z/openmonetis-companion/releases](https://github.com/Tavares-z/openmonetis-companion/releases)
 
 ---
 
