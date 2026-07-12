@@ -54,6 +54,10 @@ jobs:
           path: app/build/outputs/apk/debug/app-debug.apk
           retention-days: 14
 
+      - name: Generate version manifest
+        run: |
+          echo "{\"sha\": \"${{ github.sha }}\", \"buildTime\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}" > version.json
+
       - name: Remove previous debug-latest release
         run: gh release delete debug-latest --yes --cleanup-tag || true
         env:
@@ -66,6 +70,8 @@ jobs:
           name: "Debug build (latest)"
           body: "APK de debug gerado automaticamente a partir do commit ${{ github.sha }}. Nao assinado com keystore de release - so pra teste."
           prerelease: true
-          files: app/build/outputs/apk/debug/app-debug.apk
+          files: |
+            app/build/outputs/apk/debug/app-debug.apk
+            version.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

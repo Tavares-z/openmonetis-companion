@@ -36,6 +36,7 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Tune
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -46,6 +47,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -94,6 +96,44 @@ fun HomeScreen(
         lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
             viewModel.refreshPermissionStatus()
         }
+    }
+
+    uiState.availableUpdateSha?.let { sha ->
+        AlertDialog(
+            onDismissRequest = {
+                if (!uiState.isDownloadingUpdate) viewModel.dismissUpdatePrompt()
+            },
+            title = { Text("Nova versão disponível") },
+            text = {
+                if (uiState.isDownloadingUpdate) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                        Text("Baixando atualização...")
+                    }
+                } else {
+                    Text("Build $sha disponível. Deseja baixar e instalar agora?")
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = { viewModel.downloadAndInstallUpdate(context) },
+                    enabled = !uiState.isDownloadingUpdate
+                ) {
+                    Text("Baixar agora")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = viewModel::dismissUpdatePrompt,
+                    enabled = !uiState.isDownloadingUpdate
+                ) {
+                    Text("Depois")
+                }
+            }
+        )
     }
 
     selectedNotification?.let { notification ->

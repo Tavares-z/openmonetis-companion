@@ -18,6 +18,10 @@ android {
         versionName = "1.5.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // Set by CI (GITHUB_SHA env var); used to detect when a newer debug
+        // build is available (see UpdateChecker).
+        buildConfigField("String", "GIT_SHA", "\"${System.getenv("GITHUB_SHA") ?: "local"}\"")
     }
 
     signingConfigs {

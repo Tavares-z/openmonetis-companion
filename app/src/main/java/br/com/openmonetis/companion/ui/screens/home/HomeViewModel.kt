@@ -17,6 +17,8 @@ import br.com.openmonetis.companion.data.local.entities.SyncStatus
 import br.com.openmonetis.companion.service.CaptureNotificationListenerService
 import br.com.openmonetis.companion.service.SyncWorker
 import br.com.openmonetis.companion.util.SecureStorage
+import br.com.openmonetis.companion.util.UpdateChecker
+import androidx.core.content.FileProvider
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -65,6 +67,8 @@ data class HomeUiState(
     val enabledAppsCount: Int = 0,
     val monitoredApps: List<MonitoredAppIcon> = emptyList(),
     val isRefreshing: Boolean = false,
+    val availableUpdateSha: String? = null,
+    val isDownloadingUpdate: Boolean = false,
     // History
     val notifications: List<NotificationUiItem> = emptyList(),
     val selectedFilter: SyncStatusFilter = SyncStatusFilter.SENT,
@@ -76,7 +80,8 @@ class HomeViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val notificationDao: NotificationDao,
     private val appConfigDao: AppConfigDao,
-    private val secureStorage: SecureStorage
+    private val secureStorage: SecureStorage,
+    private val updateChecker: UpdateChecker
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState())
@@ -93,6 +98,45 @@ class HomeViewModel @Inject constructor(
         loadNotifications()
         checkNotificationPermission()
         checkBatteryOptimization()
+        checkForUpdate()
+    }
+
+    private fun checkForUpdate() {
+        viewModelScope.launch {
+            val result = updateChecker.checkForUpdate()
+            _uiState.value = _uiState.value.copy(availableUpdateSha = result?.shortSha)
+        }
+    }
+
+    fun dismissUpdatePrompt() {
+        _uiState.value = _uiState.value.copy(availableUpdateSha = null)
+    }
+
+    fun downloadAndInstallUpdate(context: Context) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isDownloadingUpdate = true)
+
+            val file = updateChecker.downloadApk(context)
+
+            _uiState.value = _uiState.value.copy(isDownloadingUpdate = false)
+
+            if (file == null) {
+                return@launch
+            }
+
+            _uiState.value = _uiState.value.copy(availableUpdateSha = null)
+
+            val uri = FileProvider.getUriForFile(
+                context,
+                "${context.packageName}.fileprovider",
+                file
+            )
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(uri, "application/vnd.android.package-archive")
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(intent)
+        }
     }
 
     private fun loadStats() {
