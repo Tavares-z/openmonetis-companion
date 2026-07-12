@@ -6,6 +6,9 @@ on:
       - master
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build-debug:
     runs-on: ubuntu-latest
@@ -36,3 +39,19 @@ jobs:
           name: app-debug
           path: app/build/outputs/apk/debug/app-debug.apk
           retention-days: 14
+
+      - name: Remove previous debug-latest release
+        run: gh release delete debug-latest --yes --cleanup-tag || true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish debug-latest release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: debug-latest
+          name: "Debug build (latest)"
+          body: "APK de debug gerado automaticamente a partir do commit ${{ github.sha }}. Nao assinado com keystore de release - so pra teste."
+          prerelease: true
+          files: app/build/outputs/apk/debug/app-debug.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
