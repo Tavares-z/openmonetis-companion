@@ -52,6 +52,10 @@ captures/
 # Keystore files
 *.jks
 *.keystore
+# Debug keystore is intentionally committed - it's not secret, and keeping it
+# fixed lets every debug build share the same signature so APK updates work
+# without needing to uninstall the previous build first.
+!app/debug.keystore
 
 # External native build folder generated in Android Studio 2.2 and later
 .externalNativeBuild

@@ -27,6 +27,18 @@ android {
             keyAlias = project.findProperty("android.injected.signing.key.alias") as String?
             keyPassword = project.findProperty("android.injected.signing.key.password") as String?
         }
+        getByName("debug") {
+            // Fixed (checked-in, non-secret) debug keystore so every debug
+            // build - local or CI - shares the same signature. Without this,
+            // AGP auto-generates a new debug key per machine (a fresh one on
+            // every ephemeral CI runner), and Android refuses to install an
+            // update signed with a different key than the one already
+            // installed ("App not installed").
+            storeFile = file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
     }
 
     buildTypes {
@@ -41,6 +53,7 @@ android {
         }
         debug {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
 
