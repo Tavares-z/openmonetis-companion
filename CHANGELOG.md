@@ -5,6 +5,24 @@ Todas as mudanças notáveis deste projeto serão documentadas neste arquivo.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
+## [Unreleased]
+
+### Adicionado
+
+- Card na tela inicial pedindo isenção de otimização de bateria quando o app não está isento, com fallback pra tela de configurações caso o intent direto não exista no aparelho
+- Item permanente em Ajustes mostrando o status da isenção de otimização de bateria, com atalho pra conceder ou revogar
+- Verificação de atualização dentro do app: ao abrir, compara a build instalada com a release `debug-latest` e oferece baixar e instalar direto, sem precisar abrir o GitHub manualmente
+- Aviso na tela de Ajustes quando o token de acesso está a 30 dias ou menos de expirar
+
+### Alterado
+
+- `CaptureNotificationListenerService` agora ignora notificações que parecem duplicata de uma compra já capturada (mesmo app + mesmo valor nos últimos 3 minutos)
+- Builds de debug (CI e local) agora usam uma keystore fixa e versionada no repo, permitindo atualizar o app instalado sem precisar desinstalar antes
+
+### Corrigido
+
+- Notificações que ficavam travadas permanentemente em "Enviando" quando o processo de sincronização era encerrado no meio do envio (Doze, OOM killer, crash) - agora são recuperadas automaticamente no início de cada sincronização
+
 ## [1.5.2] - 2026-05-30
 
 ### Adicionado
