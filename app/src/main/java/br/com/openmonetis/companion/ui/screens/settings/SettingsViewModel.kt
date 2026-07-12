@@ -5,6 +5,9 @@ import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.graphics.drawable.Drawable
+import android.net.Uri
+import android.os.PowerManager
+import android.provider.Settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import br.com.openmonetis.companion.data.local.dao.AppConfigDao
@@ -57,7 +60,8 @@ data class SettingsUiState(
     val exportMessage: String? = null,
     val notifySyncSuccess: Boolean = true,
     val notifySyncError: Boolean = true,
-    val tokenExpiresInDays: Long? = null
+    val tokenExpiresInDays: Long? = null,
+    val hasBatteryOptimizationExemption: Boolean = true
 )
 
 @HiltViewModel
@@ -96,12 +100,34 @@ class SettingsViewModel @Inject constructor(
                 tokenExpiresInDays = daysUntilStoredExpiry()
             )
 
+            checkBatteryOptimization()
             loadMonitoredApps()
 
             if (hasToken && serverUrl.isNotEmpty()) {
                 refreshTokenExpiry()
             }
         }
+    }
+
+    private fun checkBatteryOptimization() {
+        val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager
+        val isExempt = powerManager.isIgnoringBatteryOptimizations(context.packageName)
+        _uiState.value = _uiState.value.copy(hasBatteryOptimizationExemption = isExempt)
+    }
+
+    fun refreshBatteryOptimizationStatus() {
+        checkBatteryOptimization()
+    }
+
+    fun requestIgnoreBatteryOptimizationsIntent(): Intent {
+        return Intent(
+            Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+            Uri.parse("package:${context.packageName}")
+        )
+    }
+
+    fun openBatteryOptimizationSettings(): Intent {
+        return Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
     }
 
     private fun daysUntilStoredExpiry(): Long? {

@@ -1,6 +1,7 @@
 package br.com.openmonetis.companion.ui.screens.settings
 
 import android.Manifest
+import android.content.ActivityNotFoundException
 import android.content.pm.PackageManager
 import android.os.Build
 import android.widget.Toast
@@ -27,6 +28,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.BatteryAlert
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
@@ -67,6 +69,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 import br.com.openmonetis.companion.R
 import com.google.accompanist.drawablepainter.rememberDrawablePainter
 
@@ -80,7 +85,14 @@ fun SettingsScreen(
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
     val uriHandler = LocalUriHandler.current
+    val lifecycleOwner = LocalLifecycleOwner.current
     var pendingAlertPreference by remember { mutableStateOf<((Boolean) -> Unit)?>(null) }
+
+    LaunchedEffect(lifecycleOwner) {
+        lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            viewModel.refreshBatteryOptimizationStatus()
+        }
+    }
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
@@ -262,6 +274,28 @@ fun SettingsScreen(
                         )
                     }
                 }
+            }
+
+            item {
+                SectionHeader(title = "Bateria")
+            }
+
+            item {
+                BatteryOptimizationStatusItem(
+                    isExempt = uiState.hasBatteryOptimizationExemption,
+                    onManage = {
+                        val intent = if (uiState.hasBatteryOptimizationExemption) {
+                            viewModel.openBatteryOptimizationSettings()
+                        } else {
+                            viewModel.requestIgnoreBatteryOptimizationsIntent()
+                        }
+                        try {
+                            context.startActivity(intent)
+                        } catch (e: ActivityNotFoundException) {
+                            context.startActivity(viewModel.openBatteryOptimizationSettings())
+                        }
+                    }
+                )
             }
 
             item {
@@ -825,6 +859,54 @@ private fun TokenExpiryWarningCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun BatteryOptimizationStatusItem(
+    isExempt: Boolean,
+    onManage: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        onClick = onManage
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Icon(
+                imageVector = if (isExempt) Icons.Default.CheckCircle else Icons.Default.BatteryAlert,
+                contentDescription = null,
+                tint = if (isExempt) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Otimização de bateria",
+                    style = MaterialTheme.typography.titleSmall
+                )
+                Text(
+                    text = if (isExempt) {
+                        "Desativada — a captura em segundo plano está protegida. Toque para gerenciar."
+                    } else {
+                        "Ativada — o sistema pode interromper a captura em segundo plano. Toque para desativar."
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+                contentDescription = "Gerenciar",
+                tint = MaterialTheme.colorScheme.primary
+            )
         }
     }
 }
