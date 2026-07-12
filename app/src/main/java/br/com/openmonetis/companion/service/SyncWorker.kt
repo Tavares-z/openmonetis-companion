@@ -45,6 +45,12 @@ class SyncWorker @AssistedInject constructor(
     override suspend fun doWork(): Result {
         Log.d(TAG, "Starting sync work")
 
+        // Recover notifications stuck in SYNCING from a run that was killed
+        // mid-flight. Safe because ExistingWorkPolicy.REPLACE + a unique work
+        // name guarantee only one sync executes at a time, so anything still
+        // SYNCING here must be orphaned from an interrupted run.
+        notificationDao.resetStaleSyncing()
+
         // Clean old logs (older than 7 days)
         cleanOldLogs()
 

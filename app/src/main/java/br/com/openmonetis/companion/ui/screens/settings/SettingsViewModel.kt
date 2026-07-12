@@ -10,6 +10,7 @@ import androidx.lifecycle.viewModelScope
 import br.com.openmonetis.companion.data.local.dao.AppConfigDao
 import br.com.openmonetis.companion.data.local.dao.NotificationDao
 import br.com.openmonetis.companion.data.local.entities.AppConfigEntity
+import br.com.openmonetis.companion.data.remote.OpenMonetisApi
 import br.com.openmonetis.companion.util.NotificationsExporter
 import br.com.openmonetis.companion.util.SecureStorage
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -20,6 +21,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.time.Instant
+import java.time.temporal.ChronoUnit
 import javax.inject.Inject
 
 data class MonitoredAppUi(
@@ -53,7 +56,8 @@ data class SettingsUiState(
     val isExportingNotifications: Boolean = false,
     val exportMessage: String? = null,
     val notifySyncSuccess: Boolean = true,
-    val notifySyncError: Boolean = true
+    val notifySyncError: Boolean = true,
+    val tokenExpiresInDays: Long? = null
 )
 
 @HiltViewModel
@@ -62,7 +66,8 @@ class SettingsViewModel @Inject constructor(
     private val secureStorage: SecureStorage,
     private val appConfigDao: AppConfigDao,
     private val notificationDao: NotificationDao,
-    private val notificationsExporter: NotificationsExporter
+    private val notificationsExporter: NotificationsExporter,
+    private val api: OpenMonetisApi
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SettingsUiState())
@@ -87,10 +92,38 @@ class SettingsViewModel @Inject constructor(
                 isConnected = hasToken && serverUrl.isNotEmpty(),
                 appVersion = appVersion,
                 notifySyncSuccess = secureStorage.notifySyncSuccess,
-                notifySyncError = secureStorage.notifySyncError
+                notifySyncError = secureStorage.notifySyncError,
+                tokenExpiresInDays = daysUntilStoredExpiry()
             )
 
             loadMonitoredApps()
+
+            if (hasToken && serverUrl.isNotEmpty()) {
+                refreshTokenExpiry()
+            }
+        }
+    }
+
+    private fun daysUntilStoredExpiry(): Long? {
+        val expiresAt = secureStorage.tokenExpiresAt
+        if (expiresAt < 0) return null
+        return ChronoUnit.DAYS.between(Instant.now(), Instant.ofEpochMilli(expiresAt))
+    }
+
+    /**
+     * Asks the server for the token's expiration and caches it locally, so we
+     * can warn the user before sync silently starts failing. Best-effort: any
+     * failure here just leaves the previously cached value (or null) in place.
+     */
+    private fun refreshTokenExpiry() {
+        viewModelScope.launch {
+            runCatching {
+                val response = api.verifyToken()
+                val expiresAt = response.body()?.expiresAt ?: return@runCatching
+                val epochMillis = Instant.parse(expiresAt).toEpochMilli()
+                secureStorage.tokenExpiresAt = epochMillis
+                _uiState.value = _uiState.value.copy(tokenExpiresInDays = daysUntilStoredExpiry())
+            }
         }
     }
 
@@ -239,7 +272,8 @@ class SettingsViewModel @Inject constructor(
                 serverUrl = "",
                 tokenName = "",
                 isConnected = false,
-                showDisconnectDialog = false
+                showDisconnectDialog = false,
+                tokenExpiresInDays = null
             )
         }
     }
@@ -278,6 +312,7 @@ class SettingsViewModel @Inject constructor(
             }
             if (token.isNotEmpty()) {
                 secureStorage.accessToken = token
+                secureStorage.tokenExpiresAt = -1L
             }
 
             _uiState.value = _uiState.value.copy(
@@ -285,8 +320,13 @@ class SettingsViewModel @Inject constructor(
                 isConnected = url.isNotEmpty() && token.isNotEmpty(),
                 showEditServerDialog = false,
                 editServerUrl = "",
-                editToken = ""
+                editToken = "",
+                tokenExpiresInDays = null
             )
+
+            if (url.isNotEmpty() && token.isNotEmpty()) {
+                refreshTokenExpiry()
+            }
         }
     }
 

@@ -59,6 +59,17 @@ interface NotificationDao {
     @Query("UPDATE notifications SET sync_status = :status WHERE id = :id")
     suspend fun updateStatus(id: String, status: SyncStatus)
 
+    /**
+     * Recovers notifications orphaned in SYNCING by a worker run that never
+     * finished (process death, Doze, crash) - they're excluded from
+     * getPendingSync and would otherwise never be retried.
+     */
+    @Query("UPDATE notifications SET sync_status = :newStatus WHERE sync_status = :staleStatus")
+    suspend fun resetStaleSyncing(
+        staleStatus: SyncStatus = SyncStatus.SYNCING,
+        newStatus: SyncStatus = SyncStatus.PENDING_SYNC
+    )
+
     @Query("UPDATE notifications SET sync_status = :status, sync_error = NULL WHERE id = :id")
     suspend fun retrySync(id: String, status: SyncStatus = SyncStatus.PENDING_SYNC)
 

@@ -253,6 +253,17 @@ fun SettingsScreen(
                 )
             }
 
+            uiState.tokenExpiresInDays?.let { daysLeft ->
+                if (daysLeft <= 30) {
+                    item {
+                        TokenExpiryWarningCard(
+                            daysLeft = daysLeft,
+                            onEdit = viewModel::showEditServerDialog
+                        )
+                    }
+                }
+            }
+
             item {
                 SectionHeader(title = "Alertas do Companion")
             }
@@ -771,6 +782,49 @@ private fun ServerCard(
                 text = tokenName.ifEmpty { "-" },
                 style = MaterialTheme.typography.bodyMedium
             )
+        }
+    }
+}
+
+@Composable
+private fun TokenExpiryWarningCard(
+    daysLeft: Long,
+    onEdit: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f)
+        ),
+        onClick = onEdit
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Icon(
+                Icons.Default.Error,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.error
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = if (daysLeft <= 0) {
+                        "Seu token de acesso expirou"
+                    } else {
+                        "Seu token de acesso expira em $daysLeft dia${if (daysLeft == 1L) "" else "s"}"
+                    },
+                    style = MaterialTheme.typography.titleSmall
+                )
+                Text(
+                    text = "Gere um novo token em Ajustes > Companion no OpenMonetis e atualize aqui, ou a sincronização vai parar de funcionar.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
     }
 }

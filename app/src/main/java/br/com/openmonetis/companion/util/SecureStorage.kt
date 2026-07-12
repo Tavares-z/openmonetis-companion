@@ -56,6 +56,11 @@ class SecureStorage @Inject constructor(
         get() = prefs.getLong(KEY_LAST_SYNC_TIME, 0L)
         set(value) = prefs.edit().putLong(KEY_LAST_SYNC_TIME, value).apply()
 
+    /** Epoch millis when the current access token expires, or -1 if unknown. */
+    var tokenExpiresAt: Long
+        get() = prefs.getLong(KEY_TOKEN_EXPIRES_AT, -1L)
+        set(value) = prefs.edit().putLong(KEY_TOKEN_EXPIRES_AT, value).apply()
+
     var notifySyncSuccess: Boolean
         get() = prefs.getBoolean(KEY_NOTIFY_SYNC_SUCCESS, true)
         set(value) = prefs.edit().putBoolean(KEY_NOTIFY_SYNC_SUCCESS, value).apply()
@@ -112,6 +117,7 @@ class SecureStorage @Inject constructor(
         private const val KEY_TOKEN_NAME = "token_name"
         private const val KEY_DEVICE_ID = "device_id"
         private const val KEY_LAST_SYNC_TIME = "last_sync_time"
+        private const val KEY_TOKEN_EXPIRES_AT = "token_expires_at"
         private const val KEY_NOTIFY_SYNC_SUCCESS = "notify_sync_success"
         private const val KEY_NOTIFY_SYNC_ERROR = "notify_sync_error"
     }
