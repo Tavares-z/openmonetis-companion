@@ -19,6 +19,9 @@ class BootReceiver : BroadcastReceiver() {
 
             // Schedule a sync to catch up on any pending notifications
             SyncWorker.enqueue(context)
+
+            // Re-arm the safety-net periodic sync (KEEP no-ops if still scheduled)
+            SyncWorker.enqueuePeriodic(context)
         }
     }
 

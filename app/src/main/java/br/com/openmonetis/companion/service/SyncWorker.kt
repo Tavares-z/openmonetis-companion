@@ -6,9 +6,11 @@ import androidx.hilt.work.HiltWorker
 import androidx.work.BackoffPolicy
 import androidx.work.Constraints
 import androidx.work.CoroutineWorker
+import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import br.com.openmonetis.companion.data.local.dao.NotificationDao
@@ -58,6 +60,17 @@ class SyncWorker @AssistedInject constructor(
         if (!secureStorage.isConfigured()) {
             Log.w(TAG, "Not configured, skipping sync")
             log(SyncLogType.WARNING, "Sincronização ignorada: app não configurado")
+            return Result.failure()
+        }
+
+        // If a previous sync hit 401, the token is expired/revoked and every
+        // request will keep failing until the user re-enters a token. Don't
+        // hammer the server on each captured notification - just hold. The flag
+        // is cleared by saveCredentials() on successful re-setup, and the
+        // periodic sync will pick pending items back up afterwards.
+        if (secureStorage.needsReauth) {
+            Log.w(TAG, "Re-auth required, skipping sync until reconfigured")
+            log(SyncLogType.WARNING, "Sincronização pausada: reconfigure o token de acesso")
             return Result.failure()
         }
 
@@ -145,13 +158,16 @@ class SyncWorker @AssistedInject constructor(
                 val errorCode = response.code()
 
                 if (errorCode == 401) {
-                    // Token expired, try to refresh
-                    Log.w(TAG, "Token expired, attempting refresh")
+                    Log.w(TAG, "Token rejected (401), pausing sync until re-auth")
                     log(SyncLogType.ERROR, "Token expirado", details = "HTTP 401")
-                    pending.forEach { notification ->
-                        notificationDao.markSyncFailed(notification.id, "Token expirado")
-                        syncResultNotifier.notifyError(notification, "Token expirado")
-                    }
+                    // Backend uses a single 1-year opaque token with no refresh
+                    // flow, so a 401 means expired/revoked - the user must enter
+                    // a new one. Keep the notifications PENDING (don't burn them
+                    // into permanent failures) and raise a single app-level
+                    // re-auth flag + notification instead of N per-entry errors.
+                    notificationDao.resetStaleSyncing()
+                    secureStorage.needsReauth = true
+                    syncResultNotifier.notifyReauthRequired()
                     Result.failure()
                 } else if (errorCode == 429) {
                     // Rate limited, retry later
@@ -208,7 +224,9 @@ class SyncWorker @AssistedInject constructor(
     companion object {
         private const val TAG = "SyncWorker"
         private const val WORK_NAME = "sync_notifications"
+        private const val PERIODIC_WORK_NAME = "sync_notifications_periodic"
         private const val BATCH_SIZE = 50
+        private const val PERIODIC_INTERVAL_HOURS = 6L
 
         fun enqueue(context: Context) {
             val constraints = Constraints.Builder()
@@ -226,6 +244,39 @@ class SyncWorker @AssistedInject constructor(
 
             WorkManager.getInstance(context)
                 .enqueueUniqueWork(WORK_NAME, ExistingWorkPolicy.REPLACE, request)
+        }
+
+        /**
+         * Safety-net sync. Capture is event-driven (one-time work per captured
+         * notification), so if a batch is left in PENDING/SYNC_FAILED after its
+         * backoff is exhausted, nothing re-triggers it until a *new* notification
+         * arrives. This periodic drains those stragglers. KEEP so we don't reset
+         * the interval on every app start; it no-ops when there's nothing pending
+         * and self-skips while needsReauth is set.
+         */
+        fun enqueuePeriodic(context: Context) {
+            val constraints = Constraints.Builder()
+                .setRequiredNetworkType(NetworkType.CONNECTED)
+                .build()
+
+            val request = PeriodicWorkRequestBuilder<SyncWorker>(
+                PERIODIC_INTERVAL_HOURS,
+                TimeUnit.HOURS
+            )
+                .setConstraints(constraints)
+                .setBackoffCriteria(
+                    BackoffPolicy.EXPONENTIAL,
+                    30,
+                    TimeUnit.SECONDS
+                )
+                .build()
+
+            WorkManager.getInstance(context)
+                .enqueueUniquePeriodicWork(
+                    PERIODIC_WORK_NAME,
+                    ExistingPeriodicWorkPolicy.KEEP,
+                    request
+                )
         }
     }
 }

@@ -87,4 +87,11 @@
     <string name="notification_entry_failed_title">Erro ao enviar lançamento</string>
     <string name="notification_entry_generic_success">Lançamento enviado</string>
     <string name="notification_entry_generic_error">Erro no envio</string>
+    <string name="notification_reauth_title">Reconecte o Companion</string>
+    <string name="notification_reauth_message">O token de acesso expirou ou foi revogado. Gere um novo token no OpenMonetis e reconfigure — nenhuma notificação foi perdida.</string>
+
+    <!-- Re-auth card (Home) -->
+    <string name="home_reauth_title">Sessão expirada</string>
+    <string name="home_reauth_description">O token de acesso expirou ou foi revogado. As notificações capturadas estão guardadas e serão enviadas assim que você reconfigurar com um novo token.</string>
+    <string name="home_reauth_action">Reconfigurar</string>
 </resources>

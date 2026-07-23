@@ -1,15 +1,19 @@
 package br.com.openmonetis.companion.ui.screens.setup
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import br.com.openmonetis.companion.data.remote.OpenMonetisApi
+import br.com.openmonetis.companion.service.SyncWorker
 import br.com.openmonetis.companion.util.SecureStorage
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
+import java.time.Instant
 import javax.inject.Inject
 
 data class SetupUiState(
@@ -29,6 +33,7 @@ enum class SetupStep {
 
 @HiltViewModel
 class SetupViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val secureStorage: SecureStorage,
     private val api: OpenMonetisApi
 ) : ViewModel() {
@@ -115,10 +120,21 @@ class SetupViewModel @Inject constructor(
                     secureStorage.saveCredentials(
                         serverUrl = _uiState.value.serverUrl,
                         accessToken = token,
-                        refreshToken = null, // Will be set if we implement refresh
+                        refreshToken = null, // Backend uses a single 1-year opaque token, no refresh flow
                         tokenId = body?.tokenId,
                         tokenName = body?.tokenName
                     )
+
+                    // Persist token expiry so the "expiring soon" warning works
+                    // from setup, not only after the user opens Settings. The
+                    // verify endpoint already returns expiresAt (ISO-8601).
+                    secureStorage.tokenExpiresAt = runCatching {
+                        body?.expiresAt?.let { Instant.parse(it).toEpochMilli() }
+                    }.getOrNull() ?: -1L
+
+                    // saveCredentials() cleared needsReauth; kick a sync so any
+                    // notifications held back during re-auth drain immediately.
+                    SyncWorker.enqueue(context)
 
                     _uiState.value = _uiState.value.copy(isLoading = false)
                     _isConfigured.value = true
