@@ -138,3 +138,26 @@ git ls-remote --tags origin "refs/tags/vX.Y.Z"
 
 Do not move or force-update a published release tag unless explicitly required
 to repair an incorrect release.
+
+### Release signing keystore (secrets)
+
+`build-release.yml` signs the release APK with a **release keystore** that lives
+only as GitHub Actions secrets — it is **not** in the repo (only the debug
+keystore is committed). Four secrets drive it:
+
+- `KEYSTORE_BASE64` — the release `keystore.jks`, base64-encoded **on a single
+  line, no line breaks** (`base64 -w 0`). A wrapped/multi-line value corrupts the
+  file on decode and fails signing with
+  `KeytoolException: ... Tag number over 30 is not supported`. This exact bug
+  blocked every signed release until 2026-07-23.
+- `KEYSTORE_PASSWORD` and `KEY_PASSWORD` — the store and key passwords. They are
+  the **same value** (the keystore was generated with matching passwords).
+- `KEY_ALIAS` — `openmonetis`.
+
+The keystore was generated on 2026-07-23 with a one-shot CI workflow
+(`gen-keystore.yml`, since removed) because there is no local JDK/keytool on the
+dev machine — the app only ever builds in CI. If the keystore is ever lost, since
+the app is **sideloaded** (not on the Play Store), generating a fresh one is
+acceptable: existing installs just need a reinstall (Android rejects an update
+signed by a different key). The passwords are stored in the maintainer's password
+manager and are the only copy — losing them breaks all future signed releases.
