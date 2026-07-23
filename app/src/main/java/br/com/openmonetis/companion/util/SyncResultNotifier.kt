@@ -28,6 +28,30 @@ class SyncResultNotifier(
         )
     }
 
+    /**
+     * A single, coalesced alert that the token was rejected (401). Uses a fixed
+     * notification id so repeated failed syncs don't stack N copies, and posts
+     * even when per-entry error notifications are muted - re-auth is not an
+     * "entry failed", it's an app-level blocker the user must act on.
+     */
+    fun notifyReauthRequired() {
+        if (!canPostNotifications()) return
+
+        val builder = NotificationCompat.Builder(context, OpenMonetisApp.CHANNEL_SYNC_RESULTS)
+            .setSmallIcon(R.drawable.ic_notification_small)
+            .setContentTitle(context.getString(R.string.notification_reauth_title))
+            .setContentText(context.getString(R.string.notification_reauth_message))
+            .setStyle(
+                NotificationCompat.BigTextStyle()
+                    .bigText(context.getString(R.string.notification_reauth_message))
+            )
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setCategory(NotificationCompat.CATEGORY_ERROR)
+            .setAutoCancel(true)
+
+        NotificationManagerCompat.from(context).notify(REAUTH_NOTIFICATION_ID, builder.build())
+    }
+
     fun notifyError(notification: NotificationEntity, error: String?) {
         if (!secureStorage.notifySyncError) return
         notify(
@@ -100,5 +124,10 @@ class SyncResultNotifier(
             context,
             Manifest.permission.POST_NOTIFICATIONS
         ) == PackageManager.PERMISSION_GRANTED
+    }
+
+    companion object {
+        // Fixed id so re-auth alerts coalesce instead of stacking.
+        private const val REAUTH_NOTIFICATION_ID = 424242
     }
 }

@@ -69,6 +69,16 @@ class SecureStorage @Inject constructor(
         get() = prefs.getBoolean(KEY_NOTIFY_SYNC_ERROR, true)
         set(value) = prefs.edit().putBoolean(KEY_NOTIFY_SYNC_ERROR, value).apply()
 
+    /**
+     * Set when the server rejects the token with 401 (expired or revoked).
+     * The backend issues a single 1-year opaque token with no refresh flow,
+     * so a 401 means the user must generate and enter a new token. Pending
+     * notifications are kept (not discarded) and drained once this clears.
+     */
+    var needsReauth: Boolean
+        get() = prefs.getBoolean(KEY_NEEDS_REAUTH, false)
+        set(value) = prefs.edit().putBoolean(KEY_NEEDS_REAUTH, value).apply()
+
     fun isConfigured(): Boolean {
         return !serverUrl.isNullOrBlank() && !accessToken.isNullOrBlank()
     }
@@ -90,6 +100,8 @@ class SecureStorage @Inject constructor(
             putString(KEY_REFRESH_TOKEN, refreshToken)
             putString(KEY_TOKEN_ID, tokenId)
             putString(KEY_TOKEN_NAME, tokenName)
+            // A fresh, valid token clears any pending re-auth requirement.
+            putBoolean(KEY_NEEDS_REAUTH, false)
             apply()
         }
     }
@@ -120,5 +132,6 @@ class SecureStorage @Inject constructor(
         private const val KEY_TOKEN_EXPIRES_AT = "token_expires_at"
         private const val KEY_NOTIFY_SYNC_SUCCESS = "notify_sync_success"
         private const val KEY_NOTIFY_SYNC_ERROR = "notify_sync_error"
+        private const val KEY_NEEDS_REAUTH = "needs_reauth"
     }
 }

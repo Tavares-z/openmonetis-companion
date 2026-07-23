@@ -13,15 +13,19 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 - Item permanente em Ajustes mostrando o status da isenção de otimização de bateria, com atalho pra conceder ou revogar
 - Verificação de atualização dentro do app: ao abrir, compara a build instalada com a release `debug-latest` e oferece baixar e instalar direto, sem precisar abrir o GitHub manualmente
 - Aviso na tela de Ajustes quando o token de acesso está a 30 dias ou menos de expirar
+- Card "Sessão expirada" na tela inicial quando o servidor rejeita o token (expirado ou revogado), com atalho para reconfigurar; as notificações capturadas ficam guardadas e são enviadas assim que um novo token é informado
+- Sincronização periódica de segurança (a cada 6 horas, só com rede) que drena notificações que ficaram pendentes após o retry automático se esgotar — antes elas só eram reenviadas quando chegava uma notificação nova
 
 ### Alterado
 
 - `CaptureNotificationListenerService` agora ignora notificações que parecem duplicata de uma compra já capturada (mesmo app + mesmo valor nos últimos 3 minutos)
 - Builds de debug (CI e local) agora usam uma keystore fixa e versionada no repo, permitindo atualizar o app instalado sem precisar desinstalar antes
+- Token de acesso expirado (HTTP 401) deixou de transformar cada notificação pendente em falha permanente: agora a sincronização é pausada, uma única notificação de "reconecte" é exibida e os itens aguardam o novo token em vez de serem perdidos
 
 ### Corrigido
 
 - Notificações que ficavam travadas permanentemente em "Enviando" quando o processo de sincronização era encerrado no meio do envio (Doze, OOM killer, crash) - agora são recuperadas automaticamente no início de cada sincronização
+- Aviso de expiração do token agora funciona desde a configuração inicial: o prazo de validade passou a ser gravado no setup (antes só era preenchido depois que o usuário abria a tela de Ajustes)
 
 ## [1.5.2] - 2026-05-30
 

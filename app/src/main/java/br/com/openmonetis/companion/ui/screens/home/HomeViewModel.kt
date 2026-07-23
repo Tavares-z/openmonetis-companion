@@ -64,6 +64,7 @@ data class HomeUiState(
     val lastSyncTime: String? = null,
     val hasNotificationPermission: Boolean = false,
     val hasBatteryOptimizationExemption: Boolean = true,
+    val needsReauth: Boolean = false,
     val enabledAppsCount: Int = 0,
     val monitoredApps: List<MonitoredAppIcon> = emptyList(),
     val isRefreshing: Boolean = false,
@@ -180,7 +181,8 @@ class HomeViewModel @Inject constructor(
                 syncedToday = syncedToday,
                 enabledAppsCount = enabledApps.size,
                 monitoredApps = appsWithIcons,
-                lastSyncTime = lastSyncTimeFormatted
+                lastSyncTime = lastSyncTimeFormatted,
+                needsReauth = secureStorage.needsReauth
             )
         }
     }
@@ -297,6 +299,9 @@ class HomeViewModel @Inject constructor(
     fun refreshPermissionStatus() {
         checkNotificationPermission()
         checkBatteryOptimization()
+        // Cheap re-read so the re-auth card appears/clears on every resume,
+        // not only after a pull-to-refresh or a cold start.
+        _uiState.value = _uiState.value.copy(needsReauth = secureStorage.needsReauth)
     }
 
     /**
@@ -320,6 +325,16 @@ class HomeViewModel @Inject constructor(
 
     fun openBatteryOptimizationSettings(): Intent {
         return Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+    }
+
+    /**
+     * Clears the stored credentials so the Setup flow can run again (the token
+     * is expired/revoked). Pending notifications live in Room, not in these
+     * prefs, so they survive and drain once a new token is entered. The caller
+     * navigates to Setup after this returns.
+     */
+    fun reconfigure() {
+        secureStorage.clear()
     }
 
     fun refreshData() {

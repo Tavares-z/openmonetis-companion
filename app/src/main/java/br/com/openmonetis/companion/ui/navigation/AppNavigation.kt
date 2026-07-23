@@ -56,6 +56,11 @@ fun AppNavigation() {
                 },
                 onNavigateToLogs = {
                     navController.navigate(Screen.Logs.route)
+                },
+                onReconfigure = {
+                    navController.navigate(Screen.Setup.route) {
+                        popUpTo(Screen.Home.route) { inclusive = true }
+                    }
                 }
             )
         }

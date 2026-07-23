@@ -5,6 +5,7 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
+import br.com.openmonetis.companion.service.SyncWorker
 import dagger.hilt.android.HiltAndroidApp
 import javax.inject.Inject
 
@@ -22,6 +23,10 @@ class OpenMonetisApp : Application(), Configuration.Provider {
     override fun onCreate() {
         super.onCreate()
         createNotificationChannels()
+        // Safety-net periodic sync to drain notifications left pending after
+        // their one-time backoff was exhausted. KEEP means this is a no-op if
+        // already scheduled.
+        SyncWorker.enqueuePeriodic(this)
     }
 
     private fun createNotificationChannels() {
